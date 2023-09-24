@@ -1,4 +1,4 @@
-package main
+package office
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ func colNumToName(col int) string {
 	return name
 }
 
-func main() {
+func ExcelAddColumn() {
 	if len(os.Args) != 2 {
 		fmt.Println("使用方法: go run main.go <excelファイル>")
 		os.Exit(1)
