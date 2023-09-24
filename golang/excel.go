@@ -22,7 +22,7 @@ func colNumToName(col int) string {
 	name := ""
 	for col > 0 {
 		col--
-		name = string('A'+col%26) + name
+		name = string(rune('A'+col%26)) + name
 		col /= 26
 	}
 	return name
