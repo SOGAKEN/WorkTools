@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// findFiles finds the files that start with specified prefixes.
 func findFiles(prefix1, prefix2 string) (string, string, error) {
 	entries, err := os.ReadDir(".")
 	if err != nil {
@@ -114,47 +115,48 @@ func writeCSV(filename string, records [][]string, header []string) error {
 	return nil
 }
 
-// CompareAndWrite compares two CSV files and writes the results to separate files.
-func CompareFiles(fileTokyo, fileOsaka string) error {
-	recordsTokyo, headerTokyo, err := ReadCSV(fileTokyo)
+// CompareFiles compares two CSV files and writes the results to separate files.
+// osaka_ ファイルを基準にして、tokyo_ ファイルを比較します。
+func CompareFiles(fileOsaka, fileTokyo string) error {
+	recordsOsaka, headerOsaka, err := ReadCSV(fileOsaka)
 	if err != nil {
 		return err
 	}
 
-	recordsOsaka, _, err := ReadCSV(fileOsaka) // headerOsaka は使用しないので、_ で無視
+	recordsTokyo, _, err := ReadCSV(fileTokyo) // headerTokyo は使用しないので、_ で無視
 	if err != nil {
 		return err
 	}
 
-	inOsaka, notInOsaka := make([][]string, 0), make([][]string, 0)
+	inTokyo, notInTokyo := make([][]string, 0), make([][]string, 0)
 
-	// tokyo_ ファイルの各レコードに対して、osaka_ ファイルに含まれているかを確認
-	for key, record := range recordsTokyo {
-		if _, exists := recordsOsaka[key]; exists {
-			inOsaka = append(inOsaka, record)
+	// osaka_ ファイルの各レコードに対して、tokyo_ ファイルに含まれているかを確認
+	for key, record := range recordsOsaka {
+		if _, exists := recordsTokyo[key]; exists {
+			inTokyo = append(inTokyo, record)
 		} else {
-			notInOsaka = append(notInOsaka, record)
+			notInTokyo = append(notInTokyo, record)
 		}
 	}
 
 	// 出力ファイル名を定義
-	prefixTokyo := strings.TrimSuffix(fileTokyo, ".csv")
+	prefixOsaka := strings.TrimSuffix(fileOsaka, ".csv")
 
 	// 結果をファイルに書き出す
-	writeCSV(prefixTokyo+"_in_osaka.csv", inOsaka, headerTokyo)
-	writeCSV(prefixTokyo+"_not_in_osaka.csv", notInOsaka, headerTokyo)
+	writeCSV(prefixOsaka+"_in_tokyo.csv", inTokyo, headerOsaka)
+	writeCSV(prefixOsaka+"_not_in_tokyo.csv", notInTokyo, headerOsaka)
 
 	return nil
 }
 
 func main() {
-	tokyoFile, osakaFile, err := findFiles("tokyo_", "osaka_")
+	osakaFile, tokyoFile, err := findFiles("osaka_", "tokyo_")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 
-	if err := CompareFiles(tokyoFile, osakaFile); err != nil {
+	if err := CompareFiles(osakaFile, tokyoFile); err != nil {
 		fmt.Println("Error:", err)
 	}
 }
