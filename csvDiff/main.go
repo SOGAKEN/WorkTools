@@ -2,97 +2,113 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"os"
+	"path/filepath"
 )
 
 func main() {
-	// 各CSVファイルからデータを読み込む
-	aData, header, err := readCsv("a.csv")
-	if err != nil {
-		panic(err)
-	}
-	bData, _, err := readCsv("b.csv")
+	// 指定フォルダのファイル一覧を取得
+	entries, err := os.ReadDir(".")
 	if err != nil {
 		panic(err)
 	}
 
-	// リストを比較して結果を得る
-	aUnique, bUnique, common := compareLists(aData, bData)
-
-	// 結果をCSVファイルに出力する
-	writeCsv("a_unique.csv", aUnique, header)
-	writeCsv("b_unique.csv", bUnique, header)
-	writeCsv("common.csv", common, header)
-
-	fmt.Println("CSV files have been written successfully.")
+	// CSVファイルを処理
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".csv" {
+			processCSV(entry.Name())
+		}
+	}
 }
 
-// readCsv はCSVファイルを読み込み、データのスライスとヘッダーを返す
-func readCsv(filename string) ([][]string, []string, error) {
-	file, err := os.Open(filename)
+func processCSV(fileName string) {
+	// CSVファイルを開く
+	file, err := os.Open(fileName)
 	if err != nil {
-		return nil, nil, err
+		panic(err)
 	}
 	defer file.Close()
 
+	// CSVリーダーを作成
 	reader := csv.NewReader(file)
+
+	// CSVデータを読み込む
 	records, err := reader.ReadAll()
 	if err != nil {
-		return nil, nil, err
+		panic(err)
 	}
 
-	header := records[0] // ヘッダーを取得
-	data := records[1:]  // ヘッダーを除いたデータ
+	// ユニークと重複データを保存するマップ
+	uniqueRecords := make(map[string][]string)
+	duplicateRecords := make([][]string, 0)
 
-	return data, header, nil
-}
-
-// compareLists は2つのデータセットを比較し、ユニークな行と共通行を返す
-func compareLists(a, b [][]string) (aUnique, bUnique, common [][]string) {
-	mA := make(map[string]bool)
-	mB := make(map[string][]string)
-
-	inumIndex := 44 // 'inum'が45列目にあると仮定
-
-	for _, item := range b {
-		mB[item[inumIndex]] = item
-	}
-	for _, item := range a {
-		if bItem, found := mB[item[inumIndex]]; found {
-			common = append(common, bItem)
-		} else {
-			aUnique = append(aUnique, item)
-		}
-	}
-	for _, item := range b {
-		if _, found := mA[item[inumIndex]]; !found {
-			bUnique = append(bUnique, item)
+	// レコードをチェック
+	for _, record := range records {
+		if _, exists := uniqueRecords[record[0]]; exists {
+			// 重複レコードに追加
+			duplicateRecords = append(duplicateRecords, record)
+			delete(uniqueRecords, record[0])
+		} else if !contains(duplicateRecords, record) {
+			// ユニークレコードに追加
+			uniqueRecords[record[0]] = record
 		}
 	}
 
-	return
+	// ユニークなレコードのみのCSVを作成
+	writeCSV(fileName+"_unique.csv", uniqueRecords)
+
+	// 重複するレコードのCSVを作成
+	writeCSV(fileName+"_only.csv", duplicateRecords)
 }
 
-// writeCsv は指定されたファイル名でデータセットをヘッダー付きでCSVファイルに書き込む
-func writeCsv(filename string, data [][]string, header []string) {
-	file, err := os.Create(filename)
+func writeCSV(fileName string, records interface{}) {
+	// 新しいCSVファイルを開く
+	file, err := os.Create(fileName)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
+	// CSVライターを作成
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// ヘッダーを書き込む
-	if err := writer.Write(header); err != nil {
-		panic("Error writing header to csv:" + err.Error())
+	// レコードを書き込む
+	switch v := records.(type) {
+	case map[string][]string:
+		for _, record := range v {
+			if err := writer.Write(record); err != nil {
+				panic(err)
+			}
+		}
+	case [][]string:
+		for _, record := range v {
+			if err := writer.Write(record); err != nil {
+				panic(err)
+			}
+		}
+	default:
+		panic("Invalid record type")
 	}
+}
 
-	for _, value := range data {
-		if err := writer.Write(value); err != nil {
-			panic("Error writing record to csv:" + err.Error())
+func contains(records [][]string, record []string) bool {
+	for _, r := range records {
+		if equal(r, record) {
+			return true
 		}
 	}
+	return false
+}
+
+func equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
