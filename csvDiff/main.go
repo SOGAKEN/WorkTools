@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -16,12 +17,12 @@ func main() {
 	// CSVファイルを処理
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".csv" {
-			processCSV(entry.Name())
+			processCSV(entry.Name(), "inum")
 		}
 	}
 }
 
-func processCSV(fileName string) {
+func processCSV(fileName string, columnName string) {
 	// CSVファイルを開く
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -32,7 +33,25 @@ func processCSV(fileName string) {
 	// CSVリーダーを作成
 	reader := csv.NewReader(file)
 
-	// CSVデータを読み込む
+	// 最初の行を読み込む（ヘッダーとして）
+	header, err := reader.Read()
+	if err != nil {
+		panic(err)
+	}
+
+	// カラム名からインデックスを見つける
+	columnIndex := -1
+	for i, col := range header {
+		if strings.ToLower(col) == strings.ToLower(columnName) {
+			columnIndex = i
+			break
+		}
+	}
+	if columnIndex == -1 {
+		panic("Column " + columnName + " not found in file " + fileName)
+	}
+
+	// 残りのCSVデータを読み込む
 	records, err := reader.ReadAll()
 	if err != nil {
 		panic(err)
@@ -44,13 +63,17 @@ func processCSV(fileName string) {
 
 	// レコードをチェック
 	for _, record := range records {
-		if _, exists := uniqueRecords[record[0]]; exists {
+		if len(record) <= columnIndex {
+			continue // カラム数が足りないレコードは無視
+		}
+		key := record[columnIndex]
+		if _, exists := uniqueRecords[key]; exists {
 			// 重複レコードに追加
 			duplicateRecords = append(duplicateRecords, record)
-			delete(uniqueRecords, record[0])
+			delete(uniqueRecords, key)
 		} else if !contains(duplicateRecords, record) {
 			// ユニークレコードに追加
-			uniqueRecords[record[0]] = record
+			uniqueRecords[key] = record
 		}
 	}
 
