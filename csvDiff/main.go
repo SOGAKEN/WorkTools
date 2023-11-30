@@ -7,13 +7,6 @@ import (
 	"strings"
 )
 
-// Record represents a row in the CSV file.
-type Record struct {
-	Switch string
-	Inum   string
-}
-
-// findFiles finds the files that start with specified prefixes.
 func findFiles(prefix1, prefix2 string) (string, string, error) {
 	entries, err := os.ReadDir(".")
 	if err != nil {
@@ -51,8 +44,16 @@ func getColumnIndex(header []string, columnName string) (int, error) {
 	return -1, fmt.Errorf("column %s not found", columnName)
 }
 
-// ReadCSV reads a CSV file and returns a map of records and the header.
-func ReadCSV(filename string) (map[string]Record, []string, error) {
+// trimDecimal trims the decimal part of the inum value.
+func trimDecimal(inum string) string {
+	if dot := strings.Index(inum, "."); dot != -1 {
+		return inum[:dot]
+	}
+	return inum
+}
+
+// ReadCSV reads a CSV file and returns a map of the records (entire row) and the header.
+func ReadCSV(filename string) (map[string][]string, []string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, nil, err
@@ -70,7 +71,6 @@ func ReadCSV(filename string) (map[string]Record, []string, error) {
 	}
 
 	header := records[0]
-
 	switchIndex, err := getColumnIndex(header, "switch")
 	if err != nil {
 		return nil, nil, err
@@ -80,17 +80,18 @@ func ReadCSV(filename string) (map[string]Record, []string, error) {
 		return nil, nil, err
 	}
 
-	recordMap := make(map[string]Record)
+	recordMap := make(map[string][]string)
 	for _, record := range records[1:] {
-		key := record[switchIndex] + "-" + record[inumIndex]
-		recordMap[key] = Record{Switch: record[switchIndex], Inum: record[inumIndex]}
+		inum := trimDecimal(record[inumIndex])
+		key := record[switchIndex] + "-" + inum
+		recordMap[key] = record
 	}
 
 	return recordMap, header, nil
 }
 
 // writeCSV writes records to a CSV file, including the header.
-func writeCSV(filename string, records []Record, header []string) error {
+func writeCSV(filename string, records [][]string, header []string) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -106,7 +107,7 @@ func writeCSV(filename string, records []Record, header []string) error {
 	}
 
 	for _, record := range records {
-		if err := writer.Write([]string{record.Switch, record.Inum}); err != nil {
+		if err := writer.Write(record); err != nil {
 			return err
 		}
 	}
@@ -126,7 +127,7 @@ func CompareAndWrite(fileA, fileB string) error {
 		return err
 	}
 
-	aOnly, bOnly, common := make([]Record, 0), make([]Record, 0), make([]Record, 0)
+	aOnly, bOnly, common := make([][]string, 0), make([][]string, 0), make([][]string, 0)
 
 	for key, record := range recordsA {
 		if _, exists := recordsB[key]; !exists {
