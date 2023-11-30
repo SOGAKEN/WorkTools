@@ -53,18 +53,20 @@ func compareLists(a, b [][]string) (aUnique, bUnique, common [][]string) {
 	mA := make(map[string]bool)
 	mB := make(map[string][]string)
 
+	inumIndex := 44 // 'inum'が45列目にあると仮定
+
 	for _, item := range b {
-		mB[item[0]] = item // 'inum'が最初の列であると仮定
+		mB[item[inumIndex]] = item
 	}
 	for _, item := range a {
-		if bItem, found := mB[item[0]]; found {
+		if bItem, found := mB[item[inumIndex]]; found {
 			common = append(common, bItem)
 		} else {
 			aUnique = append(aUnique, item)
 		}
 	}
 	for _, item := range b {
-		if _, found := mA[item[0]]; !found {
+		if _, found := mA[item[inumIndex]]; !found {
 			bUnique = append(bUnique, item)
 		}
 	}
