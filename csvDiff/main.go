@@ -2,112 +2,71 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
-	"strings"
 )
 
 func main() {
-	files, err := os.ReadDir(".")
+	aInums, err := readCsv("a.csv")
 	if err != nil {
 		panic(err)
 	}
 
-	var aFiles, bFiles []string
-
-	for _, file := range files {
-		if strings.Contains(file.Name(), "A") {
-			aFiles = append(aFiles, file.Name())
-		}
-		if strings.Contains(file.Name(), "B") {
-			bFiles = append(bFiles, file.Name())
-		}
+	bInums, err := readCsv("b.csv")
+	if err != nil {
+		panic(err)
 	}
 
-	for _, aFile := range aFiles {
-		aData, aHeader := readCsv(aFile)
+	aUnique, bUnique, common := compareLists(aInums, bInums)
 
-		for _, bFile := range bFiles {
-			bData, _ := readCsv(bFile)
-
-			aOnly, bOnly, both := compareCsv(aData, bData)
-
-			writeCsv("only_"+aFile, aOnly, aHeader)
-			writeCsv("only_"+bFile, bOnly, aHeader)
-			writeCsv("both_"+aFile+"_"+bFile, both, aHeader)
-		}
-	}
+	fmt.Println("Unique to a.csv:", aUnique)
+	fmt.Println("Unique to b.csv:", bUnique)
+	fmt.Println("Common:", common)
 }
 
-func readCsv(filename string) ([][]string, []string) {
+// readCsv reads the CSV file and returns a slice of inum values
+func readCsv(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer file.Close()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	if len(records) == 0 {
-		return nil, nil
+	var inums []string
+	for _, record := range records {
+		inums = append(inums, record[0]) // Assuming 'inum' is the first column
 	}
 
-	header := records[0]
-	return records[1:], header // ヘッダーとデータ行を返す
+	return inums, nil
 }
 
-func compareCsv(aData, bData [][]string) ([][]string, [][]string, [][]string) {
-	aOnly := [][]string{}
-	bOnly := [][]string{}
-	both := [][]string{}
+// compareLists compares two slices and returns unique and common elements
+func compareLists(a, b []string) (aUnique, bUnique, common []string) {
+	mA := make(map[string]bool)
+	mB := make(map[string]bool)
 
-	bMap := make(map[string]bool)
-	for _, b := range bData {
-		bMap[strings.Join(b, ",")] = true
+	for _, item := range a {
+		mA[item] = true
 	}
-
-	for _, a := range aData {
-		aStr := strings.Join(a, ",")
-		if _, found := bMap[aStr]; found {
-			both = append(both, a)
-			delete(bMap, aStr) // 同じ行を再度検討しないように削除
+	for _, item := range b {
+		mB[item] = true
+		if _, found := mA[item]; found {
+			common = append(common, item)
 		} else {
-			aOnly = append(aOnly, a)
+			bUnique = append(bUnique, item)
+		}
+	}
+	for _, item := range a {
+		if _, found := mB[item]; !found {
+			aUnique = append(aUnique, item)
 		}
 	}
 
-	for _, b := range bData {
-		bStr := strings.Join(b, ",")
-		if _, found := bMap[bStr]; found {
-			bOnly = append(bOnly, b)
-		}
-	}
-
-	return aOnly, bOnly, both
-}
-
-func writeCsv(filename string, data [][]string, header []string) {
-	file, err := os.Create(filename)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	if len(header) > 0 {
-		if err := writer.Write(header); err != nil {
-			panic(err)
-		}
-	}
-
-	for _, record := range data {
-		if err := writer.Write(record); err != nil {
-			panic(err)
-		}
-	}
-
-	writer.Flush()
+	return
 }
