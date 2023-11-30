@@ -23,14 +23,11 @@ func main() {
 		}
 	}
 
-	var aHeader []string
-
 	for _, aFile := range aFiles {
-		aData, header := readCsv(aFile)
-		aHeader = header // A.csvのヘッダーを取得
+		aData, aHeader := readCsv(aFile)
 
 		for _, bFile := range bFiles {
-			bData, _ := readCsv(bFile) // B.csvのヘッダーは無視
+			bData, _ := readCsv(bFile)
 
 			aOnly, bOnly, both := compareCsv(aData, bData)
 
@@ -41,7 +38,7 @@ func main() {
 	}
 }
 
-func readCsv(filename string) (map[string][]string, []string) {
+func readCsv(filename string) ([][]string, []string) {
 	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -59,43 +56,33 @@ func readCsv(filename string) (map[string][]string, []string) {
 	}
 
 	header := records[0]
-	inumIndex := -1
-	for i, col := range header {
-		if col == "inum" {
-			inumIndex = i
-			break
-		}
-	}
-
-	if inumIndex == -1 {
-		panic("inum column not found")
-	}
-
-	data := make(map[string][]string)
-	for _, record := range records[1:] { // 最初のヘッダー行をスキップ
-		inum := record[inumIndex]
-		data[inum] = record
-	}
-
-	return data, header
+	return records[1:], header // ヘッダーとデータ行を返す
 }
 
-func compareCsv(aData, bData map[string][]string) ([][]string, [][]string, [][]string) {
+func compareCsv(aData, bData [][]string) ([][]string, [][]string, [][]string) {
 	aOnly := [][]string{}
 	bOnly := [][]string{}
 	both := [][]string{}
 
-	for inum, record := range aData {
-		if _, ok := bData[inum]; ok {
-			both = append(both, record)
+	bMap := make(map[string]bool)
+	for _, b := range bData {
+		bMap[strings.Join(b, ",")] = true
+	}
+
+	for _, a := range aData {
+		aStr := strings.Join(a, ",")
+		if _, found := bMap[aStr]; found {
+			both = append(both, a)
+			delete(bMap, aStr) // 同じ行を再度検討しないように削除
 		} else {
-			aOnly = append(aOnly, record)
+			aOnly = append(aOnly, a)
 		}
 	}
 
-	for inum, record := range bData {
-		if _, ok := aData[inum]; !ok {
-			bOnly = append(bOnly, record)
+	for _, b := range bData {
+		bStr := strings.Join(b, ",")
+		if _, found := bMap[bStr]; found {
+			bOnly = append(bOnly, b)
 		}
 	}
 
