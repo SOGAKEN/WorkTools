@@ -129,17 +129,24 @@ func CompareAndWrite(fileA, fileB string) error {
 
 	aOnly, bOnly, common := make([][]string, 0), make([][]string, 0), make([][]string, 0)
 
+	// Check for records unique to A
 	for key, record := range recordsA {
 		if _, exists := recordsB[key]; !exists {
 			aOnly = append(aOnly, record)
-		} else {
-			common = append(common, record)
 		}
 	}
 
+	// Check for records unique to B
 	for key, record := range recordsB {
 		if _, exists := recordsA[key]; !exists {
 			bOnly = append(bOnly, record)
+		}
+	}
+
+	// Check for common records
+	for key, record := range recordsA {
+		if _, exists := recordsB[key]; exists {
+			common = append(common, record)
 		}
 	}
 
