@@ -7,24 +7,28 @@ import (
 )
 
 func main() {
+	// 各CSVファイルからinum値を読み込む
 	aInums, err := readCsv("a.csv")
 	if err != nil {
 		panic(err)
 	}
-
 	bInums, err := readCsv("b.csv")
 	if err != nil {
 		panic(err)
 	}
 
+	// リストを比較して結果を得る
 	aUnique, bUnique, common := compareLists(aInums, bInums)
 
-	fmt.Println("Unique to a.csv:", aUnique)
-	fmt.Println("Unique to b.csv:", bUnique)
-	fmt.Println("Common:", common)
+	// 結果をCSVファイルに出力する
+	writeCsv("a_unique.csv", aUnique)
+	writeCsv("b_unique.csv", bUnique)
+	writeCsv("common.csv", common)
+
+	fmt.Println("CSV files have been written successfully.")
 }
 
-// readCsv reads the CSV file and returns a slice of inum values
+// readCsv はCSVファイルを読み込み、inum値のスライスを返す
 func readCsv(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -40,13 +44,13 @@ func readCsv(filename string) ([]string, error) {
 
 	var inums []string
 	for _, record := range records {
-		inums = append(inums, record[0]) // Assuming 'inum' is the first column
+		inums = append(inums, record[0]) // 'inum'が最初の列であると仮定
 	}
 
 	return inums, nil
 }
 
-// compareLists compares two slices and returns unique and common elements
+// compareLists は2つのスライスを比較し、ユニークな要素と共通要素を返す
 func compareLists(a, b []string) (aUnique, bUnique, common []string) {
 	mA := make(map[string]bool)
 	mB := make(map[string]bool)
@@ -69,4 +73,22 @@ func compareLists(a, b []string) (aUnique, bUnique, common []string) {
 	}
 
 	return
+}
+
+// writeCsv は指定されたファイル名でスライスをCSVファイルに書き込む
+func writeCsv(filename string, data []string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, value := range data {
+		if err := writer.Write([]string{value}); err != nil {
+			panic("Error writing record to csv:" + err.Error())
+		}
+	}
 }
