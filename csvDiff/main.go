@@ -77,14 +77,14 @@ func processCSV(fileName string, columnName string) {
 		}
 	}
 
-	// ユニークなレコードのみのCSVを作成
-	writeCSV(fileName+"_unique.csv", uniqueRecords)
+	// ユニークなレコードのみのCSVを作成（ヘッダーを含む）
+	writeCSV(fileName+"_unique.csv", header, uniqueRecords)
 
-	// 重複するレコードのCSVを作成
-	writeCSV(fileName+"_only.csv", duplicateRecords)
+	// 重複するレコードのCSVを作成（ヘッダーを含む）
+	writeCSV(fileName+"_only.csv", header, duplicateRecords)
 }
 
-func writeCSV(fileName string, records interface{}) {
+func writeCSV(fileName string, header []string, records interface{}) {
 	// 新しいCSVファイルを開く
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -95,6 +95,11 @@ func writeCSV(fileName string, records interface{}) {
 	// CSVライターを作成
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
+
+	// ヘッダーを書き込む
+	if err := writer.Write(header); err != nil {
+		panic(err)
+	}
 
 	// レコードを書き込む
 	switch v := records.(type) {
