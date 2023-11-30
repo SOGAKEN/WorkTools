@@ -17,7 +17,7 @@ func main() {
 	// CSVファイルを処理
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".csv" {
-			processCSV(entry.Name(), "inum")
+			processCSV(entry.Name(), "switch_call_id")
 		}
 	}
 }
@@ -81,7 +81,7 @@ func processCSV(fileName string, columnName string) {
 	writeCSV(fileName+"_unique.csv", header, uniqueRecords)
 
 	// 重複するレコードのCSVを作成（ヘッダーを含む）
-	writeCSV(fileName+"_only.csv", header, duplicateRecords)
+	writeCSV(fileName+"_duplicates.csv", header, duplicateRecords)
 }
 
 func writeCSV(fileName string, header []string, records interface{}) {
