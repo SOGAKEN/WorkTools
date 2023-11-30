@@ -57,23 +57,24 @@ func processCSV(fileName string, columnName string) {
 		panic(err)
 	}
 
-	// ユニークと重複データを保存するマップ
-	uniqueRecords := make(map[string][]string)
-	duplicateRecords := make([][]string, 0)
-
-	// レコードをチェック
+	// レコードのカウントを保存するマップ
+	counts := make(map[string]int)
 	for _, record := range records {
-		if len(record) <= columnIndex {
-			continue // カラム数が足りないレコードは無視
+		if len(record) > columnIndex {
+			counts[record[columnIndex]]++
 		}
-		key := record[columnIndex]
-		if _, exists := uniqueRecords[key]; exists {
-			// 重複レコードに追加
-			duplicateRecords = append(duplicateRecords, record)
-			delete(uniqueRecords, key)
-		} else if !contains(duplicateRecords, record) {
-			// ユニークレコードに追加
-			uniqueRecords[key] = record
+	}
+
+	// ユニークと重複レコードを分類
+	uniqueRecords := make([][]string, 0)
+	duplicateRecords := make([][]string, 0)
+	for _, record := range records {
+		if len(record) > columnIndex {
+			if counts[record[columnIndex]] == 1 {
+				uniqueRecords = append(uniqueRecords, record)
+			} else {
+				duplicateRecords = append(duplicateRecords, record)
+			}
 		}
 	}
 
@@ -84,7 +85,7 @@ func processCSV(fileName string, columnName string) {
 	writeCSV(fileName+"_duplicates.csv", header, duplicateRecords)
 }
 
-func writeCSV(fileName string, header []string, records interface{}) {
+func writeCSV(fileName string, header []string, records [][]string) {
 	// 新しいCSVファイルを開く
 	file, err := os.Create(fileName)
 	if err != nil {
@@ -102,41 +103,9 @@ func writeCSV(fileName string, header []string, records interface{}) {
 	}
 
 	// レコードを書き込む
-	switch v := records.(type) {
-	case map[string][]string:
-		for _, record := range v {
-			if err := writer.Write(record); err != nil {
-				panic(err)
-			}
-		}
-	case [][]string:
-		for _, record := range v {
-			if err := writer.Write(record); err != nil {
-				panic(err)
-			}
-		}
-	default:
-		panic("Invalid record type")
-	}
-}
-
-func contains(records [][]string, record []string) bool {
-	for _, r := range records {
-		if equal(r, record) {
-			return true
+	for _, record := range records {
+		if err := writer.Write(record); err != nil {
+			panic(err)
 		}
 	}
-	return false
-}
-
-func equal(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
