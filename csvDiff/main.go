@@ -41,6 +41,16 @@ func findFiles(prefix1, prefix2 string) (string, string, error) {
 	return file1, file2, nil
 }
 
+// getColumnIndex finds the index of a column in the header.
+func getColumnIndex(header []string, columnName string) (int, error) {
+	for i, h := range header {
+		if h == columnName {
+			return i, nil
+		}
+	}
+	return -1, fmt.Errorf("column %s not found", columnName)
+}
+
 // ReadCSV reads a CSV file and returns a map of records and the header.
 func ReadCSV(filename string) (map[string]Record, []string, error) {
 	file, err := os.Open(filename)
@@ -55,15 +65,25 @@ func ReadCSV(filename string) (map[string]Record, []string, error) {
 		return nil, nil, err
 	}
 
-	if len(records) == 0 {
-		return nil, nil, fmt.Errorf("file %s is empty", filename)
+	if len(records) < 2 {
+		return nil, nil, fmt.Errorf("file %s does not contain enough data", filename)
 	}
 
 	header := records[0]
+
+	switchIndex, err := getColumnIndex(header, "switch")
+	if err != nil {
+		return nil, nil, err
+	}
+	inumIndex, err := getColumnIndex(header, "inum")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	recordMap := make(map[string]Record)
 	for _, record := range records[1:] {
-		key := record[0] + "-" + record[1] // Assuming 'switch' is in column 0 and 'inum' in column 1
-		recordMap[key] = Record{Switch: record[0], Inum: record[1]}
+		key := record[switchIndex] + "-" + record[inumIndex]
+		recordMap[key] = Record{Switch: record[switchIndex], Inum: record[inumIndex]}
 	}
 
 	return recordMap, header, nil
@@ -104,11 +124,6 @@ func CompareAndWrite(fileA, fileB string) error {
 	recordsB, headerB, err := ReadCSV(fileB)
 	if err != nil {
 		return err
-	}
-
-	// Optionally, you can check if headers are the same in both files
-	if fmt.Sprintf("%v", headerA) != fmt.Sprintf("%v", headerB) {
-		return fmt.Errorf("headers do not match")
 	}
 
 	aOnly, bOnly, common := make([]Record, 0), make([]Record, 0), make([]Record, 0)
