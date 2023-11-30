@@ -101,7 +101,6 @@ func writeCSV(filename string, records [][]string, header []string) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Write the header
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -116,60 +115,46 @@ func writeCSV(filename string, records [][]string, header []string) error {
 }
 
 // CompareAndWrite compares two CSV files and writes the results to separate files.
-func CompareAndWrite(fileA, fileB string) error {
-	recordsA, headerA, err := ReadCSV(fileA)
+func CompareFiles(fileTokyo, fileOsaka string) error {
+	recordsTokyo, headerTokyo, err := ReadCSV(fileTokyo)
 	if err != nil {
 		return err
 	}
 
-	recordsB, headerB, err := ReadCSV(fileB)
+	recordsOsaka, _, err := ReadCSV(fileOsaka) // headerOsaka は使用しないので、_ で無視
 	if err != nil {
 		return err
 	}
 
-	aOnly, bOnly, common := make([][]string, 0), make([][]string, 0), make([][]string, 0)
+	inOsaka, notInOsaka := make([][]string, 0), make([][]string, 0)
 
-	// Check for records unique to A
-	for key, record := range recordsA {
-		if _, exists := recordsB[key]; !exists {
-			aOnly = append(aOnly, record)
+	// tokyo_ ファイルの各レコードに対して、osaka_ ファイルに含まれているかを確認
+	for key, record := range recordsTokyo {
+		if _, exists := recordsOsaka[key]; exists {
+			inOsaka = append(inOsaka, record)
+		} else {
+			notInOsaka = append(notInOsaka, record)
 		}
 	}
 
-	// Check for records unique to B
-	for key, record := range recordsB {
-		if _, exists := recordsA[key]; !exists {
-			bOnly = append(bOnly, record)
-		}
-	}
+	// 出力ファイル名を定義
+	prefixTokyo := strings.TrimSuffix(fileTokyo, ".csv")
 
-	// Check for common records
-	for key, record := range recordsA {
-		if _, exists := recordsB[key]; exists {
-			common = append(common, record)
-		}
-	}
-
-	// Define output file names based on input file names
-	prefixA := strings.TrimSuffix(fileA, ".csv")
-	prefixB := strings.TrimSuffix(fileB, ".csv")
-
-	// Write results to files
-	writeCSV(prefixA+"_a_only.csv", aOnly, headerA)
-	writeCSV(prefixB+"_b_only.csv", bOnly, headerB)
-	writeCSV(prefixA+"_common.csv", common, headerA)
+	// 結果をファイルに書き出す
+	writeCSV(prefixTokyo+"_in_osaka.csv", inOsaka, headerTokyo)
+	writeCSV(prefixTokyo+"_not_in_osaka.csv", notInOsaka, headerTokyo)
 
 	return nil
 }
 
 func main() {
-	osakaFile, tokyoFile, err := findFiles("osaka_", "tokyo_")
+	tokyoFile, osakaFile, err := findFiles("tokyo_", "osaka_")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 
-	if err := CompareAndWrite(osakaFile, tokyoFile); err != nil {
+	if err := CompareFiles(tokyoFile, osakaFile); err != nil {
 		fmt.Println("Error:", err)
 	}
 }
