@@ -7,8 +7,10 @@ import (
 )
 
 func main() {
-    // ファイルを読み込む
+    // protect.csvから値を読み込む
     protectSet := readCSVToSet("protect.csv")
+
+    // list.csvとone.csvをフィルタリング
     filterCSV("list.csv", protectSet)
     filterCSV("one.csv", protectSet)
 }
@@ -20,13 +22,16 @@ func readCSVToSet(filename string) map[string]bool {
     }
     defer file.Close()
 
-    lines, err := csv.NewReader(file).ReadAll()
-    if err != nil {
-        panic(err)
-    }
-
     resultSet := make(map[string]bool)
-    for _, line := range lines {
+    csvReader := csv.NewReader(file)
+    for {
+        line, err := csvReader.Read()
+        if err != nil {
+            if err == csv.ErrFieldCount || err == io.EOF {
+                break
+            }
+            panic(err)
+        }
         resultSet[line[0]] = true
     }
 
@@ -40,13 +45,16 @@ func filterCSV(filename string, protectSet map[string]bool) {
     }
     defer file.Close()
 
-    lines, err := csv.NewReader(file).ReadAll()
-    if err != nil {
-        panic(err)
-    }
-
     filtered := [][]string{}
-    for _, line := range lines {
+    csvReader := csv.NewReader(file)
+    for {
+        line, err := csvReader.Read()
+        if err != nil {
+            if err == csv.ErrFieldCount || err == io.EOF {
+                break
+            }
+            panic(err)
+        }
         if _, found := protectSet[line[0]]; !found {
             filtered = append(filtered, line)
         }
