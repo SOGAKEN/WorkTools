@@ -8,20 +8,8 @@ import (
 	"strconv"
 )
 
-func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
-	query := `
-        SELECT 
-            logid,
-            MIN(row_date) MinDate,
-            MAX(row_date) MaxDate,
-            DATEDIFF(day, MAX(row_date), GETDATE()) HowManyDaysFromToday 
-        FROM 
-            dagent 
-        GROUP BY 
-            logid 
-        ORDER BY 
-            logid
-    `
+func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedValues map[string]struct{}) {
+	query := `...` // 以前と同じクエリ
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Fatal("クエリ実行エラー: ", err.Error())
@@ -35,8 +23,13 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
 			log.Fatal("行のスキャンエラー: ", err.Error())
 		}
 
-		allWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
+		// 保護された値をチェックして除外
+		if _, ok := protectedValues[record.LogID]; ok {
+			continue
+		}
 
+		// CSVファイルに書き込み
+		allWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		if record.HowManyDaysFromToday >= 183 {
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		}
@@ -47,12 +40,8 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
 	}
 }
 
-func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer) {
-	query := `
-        (SELECT DISTINCT value FROM agent)
-        EXCEPT
-        (SELECT DISTINCT logid FROM dagent)
-    `
+func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer, protectedValues map[string]struct{}) {
+	query := `...` // 以前と同じクエリ
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Fatal("クエリ実行エラー: ", err.Error())
@@ -66,6 +55,12 @@ func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer) {
 			log.Fatal("行のスキャンエラー: ", err.Error())
 		}
 
+		// 保護された値をチェックして除外
+		if _, ok := protectedValues[value]; ok {
+			continue
+		}
+
+		// CSVファイルに書き込み
 		oneWriter.Write([]string{value})
 	}
 
