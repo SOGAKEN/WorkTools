@@ -6,9 +6,10 @@ import (
 	"log"
 	"main/model"
 	"strconv"
+	"strings"
 )
 
-func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
+func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedValues map[string]struct{}) {
 	query := `
         SELECT 
             logid,
@@ -35,9 +36,15 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
 			log.Fatal("行のスキャンエラー: ", err.Error())
 		}
 
+		trimedLogID := strings.TrimSpace(record.LogID)
+
 		allWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 
-		if record.HowManyDaysFromToday >= 183 {
+		if _, ok := protectedValues[trimedLogID]; ok {
+			// protectedValues に含まれる場合、新しいカラムを追加して書き込み
+			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday), "not_End"})
+		} else if record.HowManyDaysFromToday >= 183 {
+			// protectedValues に含まれず、かつ 183 日以上前の場合
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		}
 	}
@@ -47,7 +54,7 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer) {
 	}
 }
 
-func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer) {
+func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer, protectedValues map[string]struct{}) {
 	query := `
         (SELECT DISTINCT value FROM agent)
         EXCEPT
@@ -66,7 +73,11 @@ func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer) {
 			log.Fatal("行のスキャンエラー: ", err.Error())
 		}
 
-		oneWriter.Write([]string{value})
+		trimedValue := strings.TrimSpace(value)
+		if _, ok := protectedValues[trimedValue]; ok {
+			continue
+		}
+		oneWriter.Write([]string{trimedValue})
 	}
 
 	if err := rows.Err(); err != nil {
