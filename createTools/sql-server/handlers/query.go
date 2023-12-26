@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedValues map[string]struct{}) {
+func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedValues map[string]struct{}, daysThreshold int) {
 	query := `
         SELECT 
             logid,
@@ -43,7 +43,7 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedV
 		if _, ok := protectedValues[trimedLogID]; ok {
 			// protectedValues に含まれる場合、新しいカラムを追加して書き込み
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday), "not_End"})
-		} else if record.HowManyDaysFromToday >= 183 {
+		} else if record.HowManyDaysFromToday >= daysThreshold {
 			// protectedValues に含まれず、かつ 183 日以上前の場合
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		}

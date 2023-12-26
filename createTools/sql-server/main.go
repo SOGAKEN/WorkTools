@@ -13,11 +13,11 @@ func main() {
 	db := handlers.ConnectDB()
 
 	// CSVファイルハンドラの初期化
-	allWriter, listWriter, oneWriter, protectedValues := handlers.InitCSVWriters()
+	allWriter, listWriter, oneWriter, protectedValues, secondLineValue := handlers.InitCSVWriters()
 	defer handlers.CloseCSVWriters(allWriter, listWriter, oneWriter)
 
 	// 最初のクエリの実行
-	handlers.ExecuteFirstQuery(db, allWriter, listWriter, protectedValues)
+	handlers.ExecuteFirstQuery(db, allWriter, listWriter, protectedValues, secondLineValue)
 
 	// 二番目のクエリの実行
 	handlers.ExecuteSecondQuery(db, oneWriter, protectedValues)
