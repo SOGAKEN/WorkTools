@@ -32,7 +32,7 @@ func main() {
 	// 二番目のクエリの実行
 	params2 := model.SecondQueryParams{
 		DB:              db,
-		OneWriter:       allWriter,
+		OneWriter:       oneWriter,
 		ProtectedValues: protectedValues,
 	}
 	handlers.ExecuteSecondQuery(params2)
