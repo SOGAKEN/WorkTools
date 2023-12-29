@@ -37,12 +37,14 @@ func loadProtectedValue() (map[string]struct{}, int) {
 			}
 		}
 
-		protectedValues[record[0]] = struct{}{}
+		if lineCount > 3 {
+			protectedValues[record[0]] = struct{}{}
+		}
 	}
 	return protectedValues, secondLineValue
 }
 
-func InitCSVWriters() (*csv.Writer, *csv.Writer, *csv.Writer, map[string]struct{}, int) {
+func InitCSVWriters() (*csv.Writer, *csv.Writer, *csv.Writer, *csv.Writer, map[string]struct{}, int) {
 	allFile, err := os.Create("all.csv")
 	if err != nil {
 		log.Fatal("all.csvファイル作成エラー: ", err)
@@ -73,17 +75,28 @@ func InitCSVWriters() (*csv.Writer, *csv.Writer, *csv.Writer, map[string]struct{
 		log.Fatal("BOMの書き込みエラー: ", err)
 	}
 
+	notProtectFile, err := os.Create("not_protect.csv")
+	if err != nil {
+		log.Fatal("not_protect.csvファイル作成エラー: ", err)
+	}
+	_, err = notProtectFile.WriteString("\uFEFF") // Writing BOM
+	if err != nil {
+		log.Fatal("BOMの書き込みエラー: ", err)
+	}
+
 	allWriter := csv.NewWriter(allFile)
 	listWriter := csv.NewWriter(listFile)
 	oneWriter := csv.NewWriter(oneFile)
+	notProtectWriter := csv.NewWriter(notProtectFile)
 
 	addHeaders(allWriter, []string{"logId", "Min-Date", "Max-Date", "How"})
-	addHeaders(listWriter, []string{"logId", "Min-Date", "Max-Date", "How"})
-	addHeaders(oneWriter, []string{"logId"})
+	addHeaders(listWriter, []string{"logId", "Min-Date", "Max-Date", "How", "NOT"})
+	addHeaders(oneWriter, []string{"logId", "NOT"})
+	addHeaders(notProtectWriter, []string{"LogID"})
 
 	protectedValues, secondLineValue := loadProtectedValue()
 
-	return allWriter, listWriter, oneWriter, protectedValues, secondLineValue
+	return allWriter, listWriter, oneWriter, notProtectWriter, protectedValues, secondLineValue
 }
 
 func addHeaders(writer *csv.Writer, headers []string) {
@@ -93,8 +106,9 @@ func addHeaders(writer *csv.Writer, headers []string) {
 	}
 }
 
-func CloseCSVWriters(allWriter, listWriter, oneWriter *csv.Writer) {
+func CloseCSVWriters(allWriter, listWriter, oneWriter, notProtectWriter *csv.Writer) {
 	allWriter.Flush()
 	listWriter.Flush()
 	oneWriter.Flush()
+	notProtectWriter.Flush()
 }

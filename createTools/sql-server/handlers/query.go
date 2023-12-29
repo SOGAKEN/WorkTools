@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedValues map[string]struct{}, daysThreshold int) {
+func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter, notProtectWriter *csv.Writer, protectedValues map[string]struct{}, daysThreshold int) {
 	query := `
         SELECT 
             logid,
@@ -29,6 +29,11 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedV
 	}
 	defer rows.Close()
 
+	remainingProtected := make(map[string]struct{}, len(protectedValues))
+	for k := range protectedValues {
+		remainingProtected[k] = struct{}{}
+	}
+
 	for rows.Next() {
 		var record model.DataRecord
 		err := rows.Scan(&record.LogID, &record.MinDate, &record.MaxDate, &record.HowManyDaysFromToday)
@@ -42,11 +47,16 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter *csv.Writer, protectedV
 
 		if _, ok := protectedValues[trimedLogID]; ok {
 			// protectedValues に含まれる場合、新しいカラムを追加して書き込み
+			delete(remainingProtected, trimedLogID)
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday), "not_End"})
 		} else if record.HowManyDaysFromToday >= daysThreshold {
 			// protectedValues に含まれず、かつ 183 日以上前の場合
 			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		}
+	}
+
+	for id := range remainingProtected {
+		notProtectWriter.Write([]string{id})
 	}
 
 	if err := rows.Err(); err != nil {
@@ -75,9 +85,10 @@ func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer, protectedValues map[s
 
 		trimedValue := strings.TrimSpace(value)
 		if _, ok := protectedValues[trimedValue]; ok {
-			continue
+			oneWriter.Write([]string{trimedValue, "NOT"})
+		} else {
+			oneWriter.Write([]string{trimedValue})
 		}
-		oneWriter.Write([]string{trimedValue})
 	}
 
 	if err := rows.Err(); err != nil {
