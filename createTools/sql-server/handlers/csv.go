@@ -26,8 +26,9 @@ func loadProtectedValue() (map[string]struct{}, int) {
 			break
 		}
 		if err != nil {
-			log.Fatal("protect.csv読みいこみエラー", err)
+			log.Fatal("protect.csv読みこみエラー", err)
 		}
+
 		lineCount++
 		if lineCount == 2 {
 			// Assuming the value is in the first column of the second line
@@ -106,9 +107,26 @@ func addHeaders(writer *csv.Writer, headers []string) {
 	}
 }
 
-func CloseCSVWriters(allWriter, listWriter, oneWriter, notProtectWriter *csv.Writer) {
+func CloseCSVWriters(allWriter, listWriter, oneWriter, notProtectWriter *csv.Writer) error {
 	allWriter.Flush()
+	if err := allWriter.Error(); err != nil {
+		log.Fatal("all.csvの書き込みエラー", err)
+	}
+
 	listWriter.Flush()
+	if err := listWriter.Error(); err != nil {
+		log.Fatal("list.csvの書き込みエラー", err)
+	}
+
 	oneWriter.Flush()
+	if err := oneWriter.Error(); err != nil {
+		log.Fatal("one.csvの書き込みエラー", err)
+	}
+
 	notProtectWriter.Flush()
+	if err := notProtectWriter.Error(); err != nil {
+		log.Fatal("not_protect.csvの書き込みエラー", err)
+	}
+
+	return nil
 }
