@@ -30,7 +30,12 @@ func main() {
 	handlers.ExecuteFirstQuery(params)
 
 	// 二番目のクエリの実行
-	handlers.ExecuteSecondQuery(db, oneWriter, protectedValues)
+	params2 := model.SecondQueryParams{
+		DB:              db,
+		OneWriter:       allWriter,
+		ProtectedValues: protectedValues,
+	}
+	handlers.ExecuteSecondQuery(params2)
 
 	elapsed := time.Since(start)
 	log.Printf("プロセス終了。所要時間: %s", elapsed)
