@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"database/sql"
-	"encoding/csv"
 	"log"
 	"main/model"
 	"strconv"
@@ -64,13 +62,13 @@ func ExecuteFirstQuery(params model.FirstQueryParams) {
 	}
 }
 
-func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer, protectedValues map[string]struct{}) {
+func ExecuteSecondQuery(params model.SecondQueryParams) {
 	query := `
         (SELECT DISTINCT value FROM agent)
         EXCEPT
         (SELECT DISTINCT logid FROM dagent)
     `
-	rows, err := db.Query(query)
+	rows, err := params.DB.Query(query)
 	if err != nil {
 		log.Fatal("クエリ実行エラー: ", err.Error())
 	}
@@ -84,10 +82,10 @@ func ExecuteSecondQuery(db *sql.DB, oneWriter *csv.Writer, protectedValues map[s
 		}
 
 		trimedValue := strings.TrimSpace(value)
-		if _, ok := protectedValues[trimedValue]; ok {
-			oneWriter.Write([]string{trimedValue, "NOT"})
+		if _, ok := params.ProtectedValues[trimedValue]; ok {
+			params.OneWriter.Write([]string{trimedValue, "NOT"})
 		} else {
-			oneWriter.Write([]string{trimedValue})
+			params.OneWriter.Write([]string{trimedValue})
 		}
 	}
 

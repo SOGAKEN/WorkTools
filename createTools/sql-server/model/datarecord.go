@@ -18,5 +18,11 @@ type FirstQueryParams struct {
 	ListWriter       *csv.Writer
 	NotProtectWriter *csv.Writer
 	ProtectedValues  map[string]struct{}
-	SecondLineValue  int
+	SecondLineValue  int //対象期間
+}
+
+type SecondQueryParams struct {
+	DB              *sql.DB
+	OneWriter       *csv.Writer
+	ProtectedValues map[string]struct{}
 }
