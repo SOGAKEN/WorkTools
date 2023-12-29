@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter, notProtectWriter *csv.Writer, protectedValues map[string]struct{}, daysThreshold int) {
+func ExecuteFirstQuery(params model.FirstQueryParams) {
 	query := `
         SELECT 
             logid,
@@ -23,14 +23,14 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter, notProtectWriter *csv.
         ORDER BY 
             logid
     `
-	rows, err := db.Query(query)
+	rows, err := params.DB.Query(query)
 	if err != nil {
 		log.Fatal("クエリ実行エラー: ", err.Error())
 	}
 	defer rows.Close()
 
-	remainingProtected := make(map[string]struct{}, len(protectedValues))
-	for k := range protectedValues {
+	remainingProtected := make(map[string]struct{}, len(params.ProtectedValues))
+	for k := range params.ProtectedValues {
 		remainingProtected[k] = struct{}{}
 	}
 
@@ -43,20 +43,20 @@ func ExecuteFirstQuery(db *sql.DB, allWriter, listWriter, notProtectWriter *csv.
 
 		trimedLogID := strings.TrimSpace(record.LogID)
 
-		allWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
+		params.AllWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 
-		if _, ok := protectedValues[trimedLogID]; ok {
+		if _, ok := params.ProtectedValues[trimedLogID]; ok {
 			// protectedValues に含まれる場合、新しいカラムを追加して書き込み
 			delete(remainingProtected, trimedLogID)
-			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday), "not_End"})
-		} else if record.HowManyDaysFromToday >= daysThreshold {
+			params.ListWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday), "not_End"})
+		} else if record.HowManyDaysFromToday >= params.SecondLineValue {
 			// protectedValues に含まれず、かつ 183 日以上前の場合
-			listWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
+			params.ListWriter.Write([]string{record.LogID, record.MinDate, record.MaxDate, strconv.Itoa(record.HowManyDaysFromToday)})
 		}
 	}
 
 	for id := range remainingProtected {
-		notProtectWriter.Write([]string{id})
+		params.NotProtectWriter.Write([]string{id})
 	}
 
 	if err := rows.Err(); err != nil {

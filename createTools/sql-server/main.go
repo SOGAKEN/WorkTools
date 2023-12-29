@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"main/handlers"
+	"main/model"
 	"time"
 )
 
@@ -17,7 +18,16 @@ func main() {
 	defer handlers.CloseCSVWriters(allWriter, listWriter, oneWriter, notProtectWriter)
 
 	// 最初のクエリの実行
-	handlers.ExecuteFirstQuery(db, allWriter, listWriter, notProtectWriter, protectedValues, secondLineValue)
+	params := model.FirstQueryParams{
+		DB:               db,
+		AllWriter:        allWriter,
+		ListWriter:       listWriter,
+		NotProtectWriter: notProtectWriter,
+		ProtectedValues:  protectedValues,
+		SecondLineValue:  secondLineValue,
+	}
+
+	handlers.ExecuteFirstQuery(params)
 
 	// 二番目のクエリの実行
 	handlers.ExecuteSecondQuery(db, oneWriter, protectedValues)
