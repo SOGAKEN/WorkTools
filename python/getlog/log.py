@@ -1,28 +1,34 @@
 import boto3
 import json
 import os
+import time
 
 def lambda_handler(event, context):
     # 環境変数から設定値を取得
     instance_id = os.environ['INSTANCE_ID']
     log_file_path = os.environ['LOG_FILE_PATH']
     search_phrase = os.environ['SEARCH_PHRASE']
+    region = os.environ['REGION']
+    account_id = os.environ['ACCOUNT_ID']
 
-    # SSM クライアントの初期化
-    ssm_client = boto3.client('ssm')
+    # SSM クライアントの初期化（リージョン指定）
+    ssm_client = boto3.client('ssm', region_name=region)
 
     # コマンドの設定（ログファイルの内容を取得）
-    commands = [f'cat {log_file_path}']
+    grep_phrase = ' -e '.join(["'{}'".format(phrase.strip()) for phrase in search_phrase.split(',')])
+    commands = [f'grep -e {search_phrase} {log_file_path}']
 
     # SSM Run Command の実行
     response = ssm_client.send_command(
-        InstanceIds=[instance_id],
+        InstanceIds=[f'{instance_id}'],
         DocumentName='AWS-RunShellScript',
         Parameters={'commands': commands},
     )
 
     # コマンドの実行 ID を取得
     command_id = response['Command']['CommandId']
+
+    time.sleep(30)
 
     # コマンドの出力を取得
     output = ssm_client.get_command_invocation(
