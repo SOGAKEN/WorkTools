@@ -40,15 +40,7 @@ def lambda_handler(event, context):
     log_content = output['StandardOutputContent']
 
     # 特定の文言を検索
-    if search_phrase in log_content:
-        print(f"'{search_phrase}' was found in the log.")
-        return {
-            'statusCode': 200,
-            'body': json.dumps(f"'{search_phrase}' was found in the log.")
-        }
-    else:
-        print(f"'{search_phrase}' was not found in the log.")
-        return {
-            'statusCode': 200,
-            'body': json.dumps(f"'{search_phrase}' was not found in the log.")
-        }
+    return {
+        'statusCode': 200,
+        'body': log_content
+    }
