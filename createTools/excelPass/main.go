@@ -6,6 +6,7 @@ import (
 
 	"log"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
@@ -15,9 +16,10 @@ import (
 func main() {
 	a := app.New()
 	w := a.NewWindow("パスワード入力")
+	w.Resize(fyne.NewSize(300, 200))
 
 	passwordEntry := widget.NewPasswordEntry()
-	passwordEntry.SetPlaceHolder("パスワードを入力")
+	passwordEntry.SetPlaceHolder("Enter Password")
 
 	submitButton := widget.NewButton("OK", func() {
 		password := passwordEntry.Text
