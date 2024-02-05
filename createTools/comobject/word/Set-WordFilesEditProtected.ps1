@@ -1,8 +1,7 @@
 param (
     [String]$password,
     [ValidateSet('ReadOnly', 'Comments', 'Forms', 'TrackedChanges', 'None')]
-    [String]$editingRestriction = 'None',
-    [Switch]$createNewVersion
+    [String]$editingRestriction = 'None'
 )
 
 function Set-DocumentProtection {
@@ -34,14 +33,8 @@ Get-ChildItem -Path $directoryPath -Filter *.docx | ForEach-Object {
     $document = $word.Documents.Open($_.FullName)
     
     Set-DocumentProtection -document $document -password $password -editingRestriction $editingRestriction
-
-    if ($createNewVersion) {
-        $newPath = $_.DirectoryName + "\Protected_" + $_.Name
-        $document.SaveAs([ref] $newPath, [ref] 12, [ref] $false, [ref] $password)
-    } else {
-        $document.SaveAs([ref] $_.FullName, [ref] 12, [ref] $false, [ref] $password)
-    }
     
+    $document.Save()
     $document.Close()
 }
 
