@@ -7,10 +7,8 @@ import (
 	"path/filepath"
 )
 
-// executePowerShellScript は、指定されたPowerShellスクリプトを実行します。
-// スクリプトへの引数もサポートされます。
+// executePowerShellScript executes the specified PowerShell script with given arguments.
 func executePowerShellScript(scriptPath string, args ...string) (string, error) {
-	// PowerShellコマンドの実行ポリシーをBypassに設定し、セキュリティ警告を回避
 	cmdArgs := []string{"-ExecutionPolicy", "Bypass", "-File", scriptPath}
 	cmdArgs = append(cmdArgs, args...)
 
@@ -20,7 +18,6 @@ func executePowerShellScript(scriptPath string, args ...string) (string, error) 
 }
 
 func main() {
-	// 現在のディレクトリを取得
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		fmt.Printf("Error getting current directory: %v\n", err)
@@ -29,11 +26,13 @@ func main() {
 
 	psScriptPath := filepath.Join(dir, "Set-WordFilesEditProtected.ps1")
 	password := "yourPassword"
+	editingRestriction := "ReadOnly"
+	createNewVersion := "$true" // PowerShell expects $true or $false as string
 
-	// PowerShellスクリプトの引数
-	args := []string{"-password", password}
+	// Construct PowerShell script arguments
+	args := []string{"-password", password, "-editingRestriction", editingRestriction, "-createNewVersion"}
 
-	// PowerShellスクリプトを実行
+	// Execute the PowerShell script
 	output, err := executePowerShellScript(psScriptPath, args...)
 	if err != nil {
 		fmt.Printf("Error executing PowerShell script: %v\n", err)
