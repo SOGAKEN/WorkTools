@@ -1,7 +1,7 @@
 param (
     [String]$directoryPath,
     [String]$outputCsv = "output.csv",
-    [String]$password = "YourPassword"
+    [String]$password
 )
 
 function Set-ReadOnly {
@@ -17,8 +17,12 @@ function Set-ReadOnly {
                 $word = New-Object -ComObject Word.Application
                 $word.Visible = $false
                 $document = $word.Documents.Open($filePath)
-                $document.Protect(2, $true, $password)
-                $document.Save()
+                if ($document.ProtectionType -eq -1) {
+                    $document.Protect(2, $true, $password)
+                    $document.Save()
+                } else {
+                    $result = "pass"
+                }
                 $document.Close()
                 $word.Quit()
                 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null
@@ -27,8 +31,12 @@ function Set-ReadOnly {
                 $excel = New-Object -ComObject Excel.Application
                 $excel.Visible = $false
                 $workbook = $excel.Workbooks.Open($filePath)
-                $workbook.Protect($password, $True, $True)
-                $workbook.Save()
+                if ($workbook.HasPassword) {
+                    $result = "pass"
+                } else {
+                    $workbook.Protect($password, $True, $True)
+                    $workbook.Save()
+                }
                 $workbook.Close()
                 $excel.Quit()
                 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
@@ -36,7 +44,13 @@ function Set-ReadOnly {
             "PowerPoint" {
                 $ppt = New-Object -ComObject PowerPoint.Application
                 $presentation = $ppt.Presentations.Open($filePath)
-                $presentation.SaveAs($filePath, -2, $password) # -2 is the format for pptx
+                # PowerPointの保護状態の確認方法は限られています。
+                # ここでは、保存時にエラーが発生しないかどうかで判断します（非推奨）。
+                try {
+                    $presentation.SaveAs($filePath, -2, $password)
+                } catch {
+                    $result = "pass"
+                }
                 $presentation.Close()
                 $ppt.Quit()
                 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($ppt) | Out-Null

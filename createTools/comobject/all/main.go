@@ -7,7 +7,6 @@ import (
     "path/filepath"
 )
 
-// executePowerShellScript executes the specified PowerShell script with given arguments.
 func executePowerShellScript(scriptPath, directoryPath, outputCsv, password string) (string, error) {
     cmdArgs := []string{
         "-ExecutionPolicy", "Bypass",
@@ -24,24 +23,16 @@ func executePowerShellScript(scriptPath, directoryPath, outputCsv, password stri
 }
 
 func main() {
-    // 実行ファイルの絶対パスを取得
     exePath, err := os.Executable()
     if err != nil {
         fmt.Printf("Error getting executable path: %v\n", err)
         return
     }
     dir := filepath.Dir(exePath)
-
-    // PowerShellスクリプトのパス
     psScriptPath := filepath.Join(dir, "Set-FileEditProtected.ps1")
-
-    // 出力CSVファイルのパス
     outputCsv := filepath.Join(dir, "output.csv")
+    password := "YourHardcodedPassword" // パスワードをここにハードコーディング
 
-    // パスワード
-    password := "YourPassword"
-
-    // PowerShellスクリプトの実行
     fmt.Println("Processing files...")
     output, err := executePowerShellScript(psScriptPath, dir, outputCsv, password)
     if err != nil {
