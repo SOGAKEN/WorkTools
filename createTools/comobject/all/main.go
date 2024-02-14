@@ -1,53 +1,54 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
+    "fmt"
+    "os"
+    "os/exec"
+    "path/filepath"
 )
 
 // executePowerShellScript executes the specified PowerShell script with given arguments.
 func executePowerShellScript(scriptPath, directoryPath, outputCsv, password string) (string, error) {
-	cmdArgs := []string{
-		"-ExecutionPolicy", "Bypass",
-		"-NoProfile",
-		"-File", scriptPath,
-		"-directoryPath", directoryPath,
-		"-outputCsv", outputCsv,
-		"-password", password,
-	}
+    cmdArgs := []string{
+        "-ExecutionPolicy", "Bypass",
+        "-NoProfile",
+        "-File", scriptPath,
+        "-directoryPath", directoryPath,
+        "-outputCsv", outputCsv,
+        "-password", password,
+    }
 
-	cmd := exec.Command("powershell", cmdArgs...)
-	output, err := cmd.CombinedOutput()
-	return string(output), err
+    cmd := exec.Command("powershell", cmdArgs...)
+    output, err := cmd.CombinedOutput()
+    return string(output), err
 }
 
 func main() {
-	// Go実行ファイルと同じディレクトリを取得
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		fmt.Printf("Error getting current directory: %v\n", err)
-		return
-	}
+    // 実行ファイルの絶対パスを取得
+    exePath, err := os.Executable()
+    if err != nil {
+        fmt.Printf("Error getting executable path: %v\n", err)
+        return
+    }
+    dir := filepath.Dir(exePath)
 
-	// PowerShellスクリプトのパス
-	psScriptPath := filepath.Join(dir, "Set-FileEditProtected.ps1")
+    // PowerShellスクリプトのパス
+    psScriptPath := filepath.Join(dir, "Set-FileEditProtected.ps1")
 
-	// 出力CSVファイルのパス
-	outputCsv := filepath.Join(dir, "output.csv")
+    // 出力CSVファイルのパス
+    outputCsv := filepath.Join(dir, "output.csv")
 
-	// パスワード
-	password := "YourPassword"
+    // パスワード
+    password := "YourPassword"
 
-	// PowerShellスクリプトの実行
-	fmt.Println("Processing files...")
-	output, err := executePowerShellScript(psScriptPath, dir, outputCsv, password)
-	if err != nil {
-		fmt.Printf("Error executing PowerShell script: %v\n", err)
-		fmt.Println("Output:", output)
-		return
-	}
+    // PowerShellスクリプトの実行
+    fmt.Println("Processing files...")
+    output, err := executePowerShellScript(psScriptPath, dir, outputCsv, password)
+    if err != nil {
+        fmt.Printf("Error executing PowerShell script: %v\n", err)
+        fmt.Println("Output:", output)
+        return
+    }
 
-	fmt.Println("Completed. Check the output CSV for details.")
+    fmt.Println("Completed. Check the output CSV for details.")
 }
