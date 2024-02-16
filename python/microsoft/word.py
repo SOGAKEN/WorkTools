@@ -46,7 +46,8 @@ def process_files(directory, edit_password):
     results = []
     found_files = False
     file_count = 0
-    total_files = sum([len(files) for r, d, files in os.walk(directory) if any(file.endswith('.docx') for file in files)])
+    # .docxファイルのみをカウント
+    total_files = sum([len([file for file in files if file.endswith('.docx')]) for r, d, files in os.walk(directory)])
     print(f"合計で処理する.docxファイルの数: {total_files}")
 
     for root, dirs, files in os.walk(directory):
