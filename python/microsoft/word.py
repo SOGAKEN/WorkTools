@@ -4,6 +4,7 @@ import csv
 import sys
 import threading
 import queue
+import pythoncom  # COMライブラリの初期化とクリーンアップに必要
 from datetime import datetime
 
 def get_application_path():
@@ -28,7 +29,8 @@ def get_csv_path(base_name='word_process_results.csv'):
 
 def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
     """ドキュメントを読み取り専用に設定します。タイムアウト機能付き。"""
-    def target():
+    def target(result_queue):
+        pythoncom.CoInitialize()  # スレッドでCOMライブラリを初期化
         try:
             print(f"ドキュメント開始: {filepath}")
             word = win32.gencache.EnsureDispatch('Word.Application')
@@ -49,9 +51,10 @@ def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
         finally:
             if 'word' in locals():
                 word.Quit()
+            pythoncom.CoUninitialize()  # スレッドの終了時にCOMライブラリをクリーンアップ
 
     result_queue = queue.Queue()
-    thread = threading.Thread(target=target)
+    thread = threading.Thread(target=target, args=(result_queue,))
     thread.start()
     thread.join(timeout)
     if thread.is_alive():
