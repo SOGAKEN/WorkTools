@@ -24,7 +24,7 @@ def get_csv_path(base_name='word_process_results.csv'):
         csv_path = base_path.replace('.csv', f'{timestamp}.csv')
     else:
         csv_path = base_path
-    print(f"CSVファイルパス: {csv_path}")
+    # print(f"CSVファイルパス: {csv_path}")
     return csv_path
 
 def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
@@ -32,21 +32,21 @@ def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
     def target(result_queue):
         pythoncom.CoInitialize()  # スレッドでCOMライブラリを初期化
         try:
-            print(f"ドキュメント開始: {filepath}")
+            # print(f"ドキュメント開始: {filepath}")
             word = win32.gencache.EnsureDispatch('Word.Application')
             word.Visible = False
             doc = word.Documents.Open(filepath)
             if doc.ProtectionType == win32.constants.wdNoProtection:
                 doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
-                print(f"読み取り専用に設定: {filepath}")
+                # print(f"読み取り専用に設定: {filepath}")
                 result_queue.put('OK')
             else:
-                print(f"既に保護されています: {filepath}")
+                # print(f"既に保護されています: {filepath}")
                 result_queue.put('PASS')
             doc.Save()
             doc.Close(False)
         except Exception as e:
-            print(f"エラーが発生しました: {e}, ファイル: {filepath}")
+            # print(f"エラーが発生しました: {e}, ファイル: {filepath}")
             result_queue.put('NG')
         finally:
             if 'word' in locals():
@@ -66,8 +66,8 @@ def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
 def process_directory_for_docx(directory, edit_password):
     """ディレクトリ内のdocxファイルを処理します。"""
     results = []
-    total_files = sum(len(files) for _, _, files in os.walk(directory) if any(file.endswith('.docx') for file in files))
-    print(f"合計で処理する.docxファイルの数: {total_files}")
+    total_files = sum([len([file for file in files if file.endswith('.docx')]) for r, d, files in os.walk(directory)])
+    print(f"合計で処理する.docxファイルの数: {total_files}")    print(f"合計で処理する.docxファイルの数: {total_files}")
 
     file_count = 0
     for root, _, files in os.walk(directory):
@@ -85,7 +85,7 @@ def process_directory_for_docx(directory, edit_password):
 def print_progress(file_name, result, file_count, total_files):
     """処理の進捗を表示します。"""
     current_time = datetime.now().strftime("%H:%M:%S")
-    print(f"進捗: {file_count}/{total_files}, ファイル名: {file_name}, 結果: {result}, 時刻: {current_time}")
+    print(f"[{current_time}][{result}] {file_count}/{total_files} | {file_name}")
 
 def write_results_to_csv(results, csv_path):
     """結果をCSVに書き込みます。"""
@@ -95,7 +95,7 @@ def write_results_to_csv(results, csv_path):
         writer.writeheader()
         for result in results:
             writer.writerow(result)
-    print(f"CSVに結果を書き込みました: {csv_path}")
+    # print(f"CSVに結果を書き込みました: {csv_path}")
 
 if __name__ == '__main__':
     edit_password = 'your_edit_password'
