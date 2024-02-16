@@ -5,31 +5,43 @@ import sys
 from datetime import datetime
 
 def get_application_path():
+    """アプリケーションのパスを取得します。"""
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
+        path = os.path.dirname(sys.executable)
+    else:
+        path = os.path.dirname(os.path.abspath(__file__))
+    print(f"アプリケーションパス: {path}")
+    return path
 
 def get_csv_path(base_name='word_process_results.csv'):
+    """CSVファイルのパスを生成します。"""
     base_path = os.path.join(get_application_path(), base_name)
     if os.path.exists(base_path):
         timestamp = datetime.now().strftime("_%Y%m%d%H%M%S")
-        return base_path.replace('.csv', f'{timestamp}.csv')
-    return base_path
+        csv_path = base_path.replace('.csv', f'{timestamp}.csv')
+    else:
+        csv_path = base_path
+    print(f"CSVファイルパス: {csv_path}")
+    return csv_path
 
 def set_document_readonly(filepath, edit_password):
+    """ドキュメントを読み取り専用に設定します。"""
     try:
+        print(f"ドキュメント開始: {filepath}")
         word = win32.gencache.EnsureDispatch('Word.Application')
         word.Visible = False
         doc = word.Documents.Open(filepath)
         if doc.ProtectionType == win32.constants.wdNoProtection:
             doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
             result = 'OK'
+            print(f"読み取り専用に設定: {filepath}")
         else:
             result = 'PASS'
+            print(f"既に保護されています: {filepath}")
         doc.Save()
         doc.Close(False)
     except Exception as e:
-        print(f"エラーが発生しました: {e}")
+        print(f"エラーが発生しました: {e}, ファイル: {filepath}")
         result = 'NG'
     finally:
         if 'word' in locals():
@@ -37,6 +49,7 @@ def set_document_readonly(filepath, edit_password):
     return result
 
 def process_directory_for_docx(directory, edit_password):
+    """ディレクトリ内のdocxファイルを処理します。"""
     results = []
     total_files = sum(len(files) for _, _, files in os.walk(directory) if any(file.endswith('.docx') for file in files))
     print(f"合計で処理する.docxファイルの数: {total_files}")
@@ -55,16 +68,19 @@ def process_directory_for_docx(directory, edit_password):
     return results
 
 def print_progress(file_name, result, file_count, total_files):
+    """処理の進捗を表示します。"""
     current_time = datetime.now().strftime("%H:%M:%S")
     print(f"進捗: {file_count}/{total_files}, ファイル名: {file_name}, 結果: {result}, 時刻: {current_time}")
 
 def write_results_to_csv(results, csv_path):
+    """結果をCSVに書き込みます。"""
     with open(csv_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
         fieldnames = ['NAME', 'RESULT', 'PATH']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for result in results:
             writer.writerow(result)
+    print(f"CSVに結果を書き込みました: {csv_path}")
 
 if __name__ == '__main__':
     edit_password = 'your_edit_password'
