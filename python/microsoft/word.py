@@ -31,14 +31,17 @@ def set_document_readonly(filepath, edit_password):
         word.Quit()
         return result
     except Exception as e:
+        print(f"エラーが発生しました: {e}")
         word.Quit()
         return 'NG'
 
 def process_files(directory, edit_password):
     results = []
+    found_files = False
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith('.docx'):
+                found_files = True
                 filepath = os.path.join(root, file)
                 result = set_document_readonly(filepath, edit_password)
                 results.append({
@@ -46,6 +49,8 @@ def process_files(directory, edit_password):
                     'RESULT': result,
                     'PATH': filepath
                 })
+    if not found_files:
+        print("指定されたディレクトリに.docxファイルが見つかりません。")
     return results
 
 def write_results_to_csv(results, csv_path):
@@ -61,5 +66,10 @@ if __name__ == '__main__':
     edit_password = 'your_edit_password'
     current_directory = os.path.dirname(os.path.abspath(__file__))
     results = process_files(current_directory, edit_password)
-    write_results_to_csv(results, output_csv_path)
-    print(f'処理結果は{output_csv_path}に保存されました。'.encode('utf-8').decode('utf-8'))
+    if results:
+        write_results_to_csv(results, output_csv_path)
+        print(f'処理結果は{output_csv_path}に保存されました。')
+    else:
+        print("処理するファイルが見つかりませんでした。")
+
+    input("処理が完了しました。エンターキーを押して終了してください...")
