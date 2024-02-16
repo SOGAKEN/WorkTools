@@ -21,6 +21,7 @@ else:
     output_csv_path = base_csv_path
 
 def set_document_readonly(filepath, edit_password):
+    word = None
     try:
         word = win32.gencache.EnsureDispatch('Word.Application')
         word.Visible = False
@@ -33,14 +34,14 @@ def set_document_readonly(filepath, edit_password):
             result = 'PASS'
         
         doc.Save()
-        doc.Close()
-        word.Quit()
+        doc.Close(False)
         return result
     except Exception as e:
         print(f"エラーが発生しました: {e}")
+        return 'NG'
+    finally:
         if word:
             word.Quit()
-        return 'NG'
 
 def process_files(directory, edit_password):
     results = []
