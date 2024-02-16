@@ -2,6 +2,8 @@ import win32com.client as win32
 import os
 import csv
 import sys
+import threading
+import queue
 from datetime import datetime
 
 def get_application_path():
@@ -24,29 +26,39 @@ def get_csv_path(base_name='word_process_results.csv'):
     print(f"CSVファイルパス: {csv_path}")
     return csv_path
 
-def set_document_readonly(filepath, edit_password):
-    """ドキュメントを読み取り専用に設定します。"""
-    try:
-        print(f"ドキュメント開始: {filepath}")
-        word = win32.gencache.EnsureDispatch('Word.Application')
-        word.Visible = False
-        doc = word.Documents.Open(filepath)
-        if doc.ProtectionType == win32.constants.wdNoProtection:
-            doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
-            result = 'OK'
-            print(f"読み取り専用に設定: {filepath}")
-        else:
-            result = 'PASS'
-            print(f"既に保護されています: {filepath}")
-        doc.Save()
-        doc.Close(False)
-    except Exception as e:
-        print(f"エラーが発生しました: {e}, ファイル: {filepath}")
-        result = 'NG'
-    finally:
-        if 'word' in locals():
-            word.Quit()
-    return result
+def set_document_readonly_with_timeout(filepath, edit_password, timeout=30):
+    """ドキュメントを読み取り専用に設定します。タイムアウト機能付き。"""
+    def target():
+        try:
+            print(f"ドキュメント開始: {filepath}")
+            word = win32.gencache.EnsureDispatch('Word.Application')
+            word.Visible = False
+            doc = word.Documents.Open(filepath)
+            if doc.ProtectionType == win32.constants.wdNoProtection:
+                doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
+                print(f"読み取り専用に設定: {filepath}")
+                result_queue.put('OK')
+            else:
+                print(f"既に保護されています: {filepath}")
+                result_queue.put('PASS')
+            doc.Save()
+            doc.Close(False)
+        except Exception as e:
+            print(f"エラーが発生しました: {e}, ファイル: {filepath}")
+            result_queue.put('NG')
+        finally:
+            if 'word' in locals():
+                word.Quit()
+
+    result_queue = queue.Queue()
+    thread = threading.Thread(target=target)
+    thread.start()
+    thread.join(timeout)
+    if thread.is_alive():
+        print(f"タイムアウト: 処理が長すぎます: {filepath}")
+        # スレッドが終了するのを強制的に待たない（Wordが応答しない場合には処理を続行）
+        return 'TIMEOUT'
+    return result_queue.get()
 
 def process_directory_for_docx(directory, edit_password):
     """ディレクトリ内のdocxファイルを処理します。"""
@@ -58,7 +70,7 @@ def process_directory_for_docx(directory, edit_password):
     for root, _, files in os.walk(directory):
         for file in filter(lambda f: f.endswith('.docx'), files):
             filepath = os.path.join(root, file)
-            result = set_document_readonly(filepath, edit_password)
+            result = set_document_readonly_with_timeout(filepath, edit_password)
             results.append({'NAME': os.path.basename(filepath), 'RESULT': result, 'PATH': filepath})
             file_count += 1
             print_progress(file, result, file_count, total_files)
