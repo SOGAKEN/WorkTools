@@ -2,10 +2,21 @@ import win32com.client as win32
 from win32com.client import constants
 import os
 import csv
+import sys
 from datetime import datetime
 
-# 基本となるCSVファイルのパス
-base_csv_path = 'word_process_results.csv'
+# 基本となるCSVファイルのパスを設定
+def get_base_csv_path():
+    if getattr(sys, 'frozen', False):
+        # exeとして実行されている場合
+        application_path = os.path.dirname(sys.executable)
+    else:
+        # Pythonスクリプトとして実行されている場合
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(application_path, 'word_process_results.csv')
+
+base_csv_path = get_base_csv_path()
+
 # ファイルが既に存在するかチェック
 if os.path.exists(base_csv_path):
     # 現在の日付と時間をファイル名に追加
@@ -64,7 +75,12 @@ def write_results_to_csv(results, csv_path):
 
 if __name__ == '__main__':
     edit_password = 'your_edit_password'
-    current_directory = os.path.dirname(os.path.abspath(__file__))
+    if getattr(sys, 'frozen', False):
+        # exeとして実行されている場合
+        current_directory = os.path.dirname(sys.executable)
+    else:
+        # Pythonスクリプトとして実行されている場合
+        current_directory = os.path.dirname(os.path.abspath(__file__))
     results = process_files(current_directory, edit_password)
     if results:
         write_results_to_csv(results, output_csv_path)
