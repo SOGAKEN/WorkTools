@@ -5,21 +5,16 @@ import csv
 import sys
 from datetime import datetime
 
-# 基本となるCSVファイルのパスを設定
 def get_base_csv_path():
     if getattr(sys, 'frozen', False):
-        # exeとして実行されている場合
         application_path = os.path.dirname(sys.executable)
     else:
-        # Pythonスクリプトとして実行されている場合
         application_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(application_path, 'word_process_results.csv')
 
 base_csv_path = get_base_csv_path()
 
-# ファイルが既に存在するかチェック
 if os.path.exists(base_csv_path):
-    # 現在の日付と時間をファイル名に追加
     timestamp = datetime.now().strftime("_%Y%m%d%H%M%S")
     output_csv_path = base_csv_path.replace('.csv', f'{timestamp}.csv')
 else:
@@ -43,12 +38,17 @@ def set_document_readonly(filepath, edit_password):
         return result
     except Exception as e:
         print(f"エラーが発生しました: {e}")
-        word.Quit()
+        if word:
+            word.Quit()
         return 'NG'
 
 def process_files(directory, edit_password):
     results = []
     found_files = False
+    file_count = 0
+    total_files = sum([len(files) for r, d, files in os.walk(directory) if any(file.endswith('.docx') for file in files)])
+    print(f"合計で処理する.docxファイルの数: {total_files}")
+
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith('.docx'):
@@ -60,6 +60,9 @@ def process_files(directory, edit_password):
                     'RESULT': result,
                     'PATH': filepath
                 })
+                file_count += 1
+                print(f"進捗: {file_count}/{total_files} ファイル名: {file}")
+                
     if not found_files:
         print("指定されたディレクトリに.docxファイルが見つかりません。")
     return results
@@ -76,10 +79,8 @@ def write_results_to_csv(results, csv_path):
 if __name__ == '__main__':
     edit_password = 'your_edit_password'
     if getattr(sys, 'frozen', False):
-        # exeとして実行されている場合
         current_directory = os.path.dirname(sys.executable)
     else:
-        # Pythonスクリプトとして実行されている場合
         current_directory = os.path.dirname(os.path.abspath(__file__))
     results = process_files(current_directory, edit_password)
     if results:
