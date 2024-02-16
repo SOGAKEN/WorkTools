@@ -3,7 +3,7 @@ from win32com.client import constants
 import os
 import csv
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def get_base_csv_path():
     if getattr(sys, 'frozen', False):
@@ -46,9 +46,10 @@ def process_files(directory, edit_password):
     results = []
     found_files = False
     file_count = 0
-    # .docxファイルのみをカウント
     total_files = sum([len([file for file in files if file.endswith('.docx')]) for r, d, files in os.walk(directory)])
     print(f"合計で処理する.docxファイルの数: {total_files}")
+
+    start_time = datetime.now()
 
     for root, dirs, files in os.walk(directory):
         for file in files:
@@ -62,7 +63,9 @@ def process_files(directory, edit_password):
                     'PATH': filepath
                 })
                 file_count += 1
-                print(f"進捗: {file_count}/{total_files} ファイル名: {file}")
+                elapsed_time = datetime.now() - start_time
+                elapsed_str = str(timedelta(seconds=elapsed_time.seconds))
+                print(f"進捗: {file_count}/{total_files} ファイル名: {file}, 結果: {result}, 経過時間: {elapsed_str}")
                 
     if not found_files:
         print("指定されたディレクトリに.docxファイルが見つかりません。")
