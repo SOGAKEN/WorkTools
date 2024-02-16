@@ -2,9 +2,17 @@ import win32com.client as win32
 from win32com.client import constants
 import os
 import csv
+from datetime import datetime
 
-# 処理結果を保存するCSVファイルのパス
-output_csv_path = 'word_process_results.csv'
+# 基本となるCSVファイルのパス
+base_csv_path = 'word_process_results.csv'
+# ファイルが既に存在するかチェック
+if os.path.exists(base_csv_path):
+    # 現在の日付と時間をファイル名に追加
+    timestamp = datetime.now().strftime("_%Y%m%d%H%M%S")
+    output_csv_path = base_csv_path.replace('.csv', f'{timestamp}.csv')
+else:
+    output_csv_path = base_csv_path
 
 def set_document_readonly(filepath, edit_password):
     try:
@@ -50,12 +58,8 @@ def write_results_to_csv(results, csv_path):
             writer.writerow(result)
 
 if __name__ == '__main__':
-    # 編集パスワード
     edit_password = 'your_edit_password'
-    # 現在のスクリプトのディレクトリ
     current_directory = os.path.dirname(os.path.abspath(__file__))
-    # ファイル処理
     results = process_files(current_directory, edit_password)
-    # 結果をCSVに書き込み
     write_results_to_csv(results, output_csv_path)
-    print(f'処理結果は{output_csv_path}に保存されました。')
+    print(f'処理結果は{output_csv_path}に保存されました。'.encode('utf-8').decode('utf-8'))
