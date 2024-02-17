@@ -2,6 +2,7 @@ package main
 
 import (
     "archive/zip"
+    "bufio"
     "encoding/csv"
     "fmt"
     "io"
@@ -82,7 +83,11 @@ func writeCSV(records [][]string) {
     }
     defer file.Close()
 
-    writer := csv.NewWriter(file)
+    // UTF-8 BOMの書き込み
+    bom := []byte{0xEF, 0xBB, 0xBF}
+    file.Write(bom)
+
+    writer := csv.NewWriter(bufio.NewWriter(file))
     defer writer.Flush()
 
     // ヘッダーの書き込み
