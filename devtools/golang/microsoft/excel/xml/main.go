@@ -8,20 +8,20 @@ import (
     "os"
     "path/filepath"
     "strings"
+    "time"
 
     "github.com/xuri/excelize/v2"
 )
 
 func init() {
     log.SetOutput(os.Stderr)
-    log.SetFlags(log.LstdFlags | log.Lshortfile)
+    log.SetFlags(0) // ログに日付や時間を出力しない
 }
 
-func checkSheetProtection(filePath string) bool {
+func checkSheetProtection(filePath string) (bool, error) {
     zipReader, err := zip.OpenReader(filePath)
     if err != nil {
-        log.Printf("Error opening file: %v\n", err)
-        return false
+        return false, err
     }
     defer zipReader.Close()
 
@@ -29,49 +29,45 @@ func checkSheetProtection(filePath string) bool {
         if strings.Contains(zipFile.Name, "xl/worksheets/") {
             f, err := zipFile.Open()
             if err != nil {
-                log.Printf("Error opening zip file: %v\n", err)
-                continue
+                return false, err
             }
 
             content, err := io.ReadAll(f)
             f.Close()
             if err != nil {
-                log.Printf("Error reading file content: %v\n", err)
-                continue
+                return false, err
             }
 
             if strings.Contains(string(content), "<sheetProtection") {
-                return true
+                return true, nil
             }
         }
     }
-    return false
+    return false, nil
 }
 
-func protectExcelFiles(filePath, password string) {
+func protectExcelFiles(filePath, password string) error {
     f, err := excelize.OpenFile(filePath)
     if err != nil {
-        log.Printf("ファイル %s を開く際にエラーが発生しました: %v\n", filePath, err)
-        return
+        return err
     }
 
     for _, name := range f.GetSheetMap() {
-        if err := f.ProtectSheet(name, &excelize.SheetProtectionOptions{
+        err := f.ProtectSheet(name, &excelize.SheetProtectionOptions{
             Password:            password,
             SelectLockedCells:   true,
             SelectUnlockedCells: true,
-        }); err != nil {
-            log.Printf("ワークブック %s の保護設定時にエラーが発生しました: %v\n", filePath, err)
-            return
+        })
+        if err != nil {
+            return err
         }
     }
 
-    if err := f.Save(); err != nil {
-        log.Printf("保護されたワークブック %s を保存する際にエラーが発生しました: %v\n", filePath, err)
-        return
-    }
+    return f.Save()
+}
 
-    log.Printf("保護されました: %s\n", filePath)
+func logProgress(timestamp, status, filePath string) {
+    fmt.Printf("[%s] %s | %s\n", timestamp, status, filePath)
 }
 
 func main() {
@@ -81,16 +77,27 @@ func main() {
 
     filepath.Walk(dirPath, func(filePath string, info os.FileInfo, err error) error {
         if err != nil {
-            log.Printf("パス %q の走査中にエラーが発生しました: %v\n", filePath, err)
             return err
         }
         if !info.IsDir() && filepath.Ext(filePath) == ".xlsx" {
             fileCount++
-            fmt.Printf("Processing file %d: %s\n", fileCount, filePath)
-            if !checkSheetProtection(filePath) {
-                protectExcelFiles(filePath, password)
+            timestamp := time.Now().Format("2006-01-02 15:04:05")
+            protected, err := checkSheetProtection(filePath)
+
+            if err != nil {
+                logProgress(timestamp, "[進捗] エラー発生：NG", filePath)
+                return nil // エラーを記録して次のファイルに進む
+            }
+
+            if protected {
+                logProgress(timestamp, "[進捗] パスワード保護の必要なし：PASS", filePath)
             } else {
-                log.Printf("保護の必要なし: %s\n", filePath)
+                err := protectExcelFiles(filePath, password)
+                if err != nil {
+                    logProgress(timestamp, "[進捗] エラー発生：NG", filePath)
+                } else {
+                    logProgress(timestamp, "[進捗] パスワード保護：OK", filePath)
+                }
             }
         }
         return nil
