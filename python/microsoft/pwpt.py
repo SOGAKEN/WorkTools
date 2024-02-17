@@ -37,17 +37,28 @@ def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, 
                     doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
                     result_queue.put('OK')
                 else:
-                    result_queue.put('PASS')
+                    result_queue.put('PASS')  # 既に保護されている場合
                 doc.Save()
                 doc.Close(False)
                 word.Quit()
             elif filepath.endswith('.pptx'):
                 powerpoint = win32.gencache.EnsureDispatch('PowerPoint.Application')
-                presentation = powerpoint.Presentations.Open(filepath, WithWindow=False)
-                presentation.SaveAs(filepath, FileFormat=24, WritePassword=edit_password)
-                result_queue.put('OK')
-                presentation.Close()
-                powerpoint.Quit()
+                try:
+                    presentation = powerpoint.Presentations.Open(filepath, WithWindow=False)
+                    # 書き込みパスワードを設定
+                    presentation.PasswordEncryptionProvider = "Office Standard"
+                    presentation.PasswordEncryptionAlgorithm = "RC4"
+                    presentation.PasswordEncryptionKeyLength = 40
+                    presentation.WritePassword = edit_password
+                    # ファイルを保存して閉じる
+                    presentation.Save()
+                    presentation.Close()
+                    result_queue.put('OK')
+                except Exception as e:
+                    # PowerPointファイルがパスワードで保護されている場合、ここで例外が発生
+                    result_queue.put('PASS')
+                finally:
+                    powerpoint.Quit()
         except Exception as e:
             result_queue.put('NG')
         finally:
@@ -97,7 +108,7 @@ def write_results_to_csv(results, csv_path):
     print(f"CSVに結果を書き込みました: {csv_path}")
 
 if __name__ == '__main__':
-    edit_password = 'your_edit_password'
+    edit_password = 'your_edit_password'  # ここに適切なパスワードを設定してください
     current_directory = get_application_path()
     results = process_directory_for_documents(current_directory, edit_password)
     if results:
