@@ -2,6 +2,7 @@ package main
 
 import (
     "archive/zip"
+    "encoding/csv"
     "fmt"
     "io"
     "log"
@@ -66,15 +67,36 @@ func protectExcelFiles(filePath, password string) error {
     return f.Save()
 }
 
-func logProgress(fileCount int, result, filePath string) {
+func logProgress(fileCount int, result, filePath string, records *[][]string) {
     timestamp := time.Now().Format("15:04:05")
     fmt.Printf("[%s][%d][%s] | %s\n", timestamp, fileCount, result, filePath)
+    *records = append(*records, []string{filepath.Base(filePath), result, filePath})
+}
+
+func writeCSV(records [][]string) {
+    timestamp := time.Now().Format("20060102150405")
+    fileName := fmt.Sprintf("result_%s.csv", timestamp)
+    file, err := os.Create(fileName)
+    if err != nil {
+        log.Fatalf("Failed to create CSV file: %v", err)
+    }
+    defer file.Close()
+
+    writer := csv.NewWriter(file)
+    defer writer.Flush()
+
+    // ヘッダーの書き込み
+    writer.Write([]string{"NAME", "RESULT", "PATH"})
+
+    // レコードの書き込み
+    writer.WriteAll(records)
 }
 
 func main() {
     dirPath := "./"
     password := "your_password"
     fileCount := 0
+    var records [][]string
 
     filepath.Walk(dirPath, func(filePath string, info os.FileInfo, err error) error {
         if err != nil {
@@ -85,23 +107,25 @@ func main() {
             protected, err := checkSheetProtection(filePath)
 
             if err != nil {
-                logProgress(fileCount, "NG", filePath)
-                return nil // エラーを記録して次のファイルに進む
+                logProgress(fileCount, "NG", filePath, &records)
+                return nil
             }
 
             if protected {
-                logProgress(fileCount, "PASS", filePath)
+                logProgress(fileCount, "PASS", filePath, &records)
             } else {
                 err := protectExcelFiles(filePath, password)
                 if err != nil {
-                    logProgress(fileCount, "NG", filePath)
+                    logProgress(fileCount, "NG", filePath, &records)
                 } else {
-                    logProgress(fileCount, "OK", filePath)
+                    logProgress(fileCount, "OK", filePath, &records)
                 }
             }
         }
         return nil
     })
+
+    writeCSV(records)
 
     fmt.Println("処理が完了しました。エンターキーを押して終了してください...")
     fmt.Scanln()
