@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,20 +34,24 @@ func protectExcelFiles(path, password string) error {
 				return err
 			}
 
-			// ブックの保護を設定
-			if err := f.ProtectWorkbook(&excelize.WorkbookProtectionOptions{
-				Password:      password,
-				LockStructure: true,
-				LockWindows:   true,
-			}); err != nil {
-				log.Printf("ワークブック %s の保護設定時にエラーが発生しました: %v\n", filePath, err)
-				return err
+			for index, name := range f.GetSheetMap() {
+				fmt.Println(index, name)
+				// ブックの保護を設定
+				if err := f.ProtectSheet(name, &excelize.SheetProtectionOptions{
+					Password:            password,
+					SelectLockedCells:   true,
+					SelectUnlockedCells: true,
+				}); err != nil {
+					log.Printf("ワークブック %s の保護設定時にエラーが発生しました: %v\n", filePath, err)
+					return err
+				}
+				// 保護を適用したファイルを保存
+				if err := f.Save(); err != nil {
+					log.Printf("保護されたワークブック %s を保存する際にエラーが発生しました: %v\n", filePath, err)
+					return err
+				}
 			}
-			// 保護を適用したファイルを保存
-			if err := f.Save(); err != nil {
-				log.Printf("保護されたワークブック %s を保存する際にエラーが発生しました: %v\n", filePath, err)
-				return err
-			}
+
 			log.Printf("保護されました: %s\n", filePath)
 		}
 		return nil
