@@ -15,7 +15,7 @@ import (
 
 func init() {
     log.SetOutput(os.Stderr)
-    log.SetFlags(0) // ログに日付や時間を出力しない
+    log.SetFlags(0) // ログの日付や時間の出力を無効化
 }
 
 func checkSheetProtection(filePath string) (bool, error) {
@@ -66,8 +66,9 @@ func protectExcelFiles(filePath, password string) error {
     return f.Save()
 }
 
-func logProgress(timestamp, status, filePath string) {
-    fmt.Printf("[%s] %s | %s\n", timestamp, status, filePath)
+func logProgress(fileCount int, result, filePath string) {
+    timestamp := time.Now().Format("15:04:05")
+    fmt.Printf("[%s][%d][%s] | %s\n", timestamp, fileCount, result, filePath)
 }
 
 func main() {
@@ -81,22 +82,21 @@ func main() {
         }
         if !info.IsDir() && filepath.Ext(filePath) == ".xlsx" {
             fileCount++
-            timestamp := time.Now().Format("2006-01-02 15:04:05")
             protected, err := checkSheetProtection(filePath)
 
             if err != nil {
-                logProgress(timestamp, "[進捗] エラー発生：NG", filePath)
+                logProgress(fileCount, "NG", filePath)
                 return nil // エラーを記録して次のファイルに進む
             }
 
             if protected {
-                logProgress(timestamp, "[進捗] パスワード保護の必要なし：PASS", filePath)
+                logProgress(fileCount, "PASS", filePath)
             } else {
                 err := protectExcelFiles(filePath, password)
                 if err != nil {
-                    logProgress(timestamp, "[進捗] エラー発生：NG", filePath)
+                    logProgress(fileCount, "NG", filePath)
                 } else {
-                    logProgress(timestamp, "[進捗] パスワード保護：OK", filePath)
+                    logProgress(fileCount, "OK", filePath)
                 }
             }
         }
