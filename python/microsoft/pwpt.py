@@ -6,6 +6,8 @@ import threading
 import queue
 import pythoncom  # COMライブラリの初期化とクリーンアップに必要
 from datetime import datetime
+from pptx import Presentation
+from pptx.exc import PackageNotFoundError
 
 
 def get_application_path():
@@ -26,6 +28,16 @@ def get_csv_path(base_name='process_results.csv'):
     else:
         csv_path = base_path
     return csv_path
+
+
+def can_open_pptx(filepath):
+    """指定されたPowerPointファイルが開けるかどうかを判定します。"""
+    try:
+        Presentation(filepath)
+        return True
+    except PackageNotFoundError:
+        # ファイルが開けない、またはパスワードで保護されている場合
+        return False
 
 
 def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, timeout=30):
@@ -92,6 +104,11 @@ def process_directory_for_documents(directory, edit_password):
     for root, _, files in os.walk(directory):
         for file in filter(lambda f: f.endswith('.docx') or f.endswith('.pptx'), files):
             filepath = os.path.join(root, file)
+            if filepath.endswith('.pptx') and not can_open_pptx(filepath):
+                print(f"ファイルが開けないためスキップします: {filepath}")
+                results.append({'NAME': os.path.basename(filepath),
+                                'RESULT': 'SKIP', 'PATH': filepath})
+                continue  # ファイルが開けない場合はスキップ
             result = set_document_or_presentation_readonly_with_timeout(
                 filepath, edit_password)
             results.append({'NAME': os.path.basename(filepath),
