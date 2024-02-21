@@ -51,12 +51,16 @@ def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, 
                 try:
                     presentation = powerpoint.Presentations.Open(
                         filepath, WithWindow=False)
-                    # 書き込みパスワードを設定
-                    presentation.WritePassword = edit_password
-                    # ファイルを保存して閉じる
-                    presentation.Save()
-                    presentation.Close()
-                    result_queue.put('OK')
+                    try:
+                        # 書き込みパスワードを設定
+                        presentation.WritePassword = edit_password
+                        # ファイルを保存して閉じる
+                        presentation.Save()
+                        result_queue.put('OK')
+                    except Exception as e:
+                        result_queue.put('PASS')
+                    finally:
+                        presentation.Close()
                 except Exception as e:
                     # PowerPointファイルがパスワードで保護されている場合、ここで例外が発生
                     result_queue.put('PASS')
