@@ -7,6 +7,7 @@ import queue
 import pythoncom  # COMライブラリの初期化とクリーンアップに必要
 from datetime import datetime
 
+
 def get_application_path():
     """アプリケーションのパスを取得します。"""
     if getattr(sys, 'frozen', False):
@@ -14,6 +15,7 @@ def get_application_path():
     else:
         path = os.path.dirname(os.path.abspath(__file__))
     return path
+
 
 def get_csv_path(base_name='process_results.csv'):
     """CSVファイルのパスを生成します。"""
@@ -25,6 +27,7 @@ def get_csv_path(base_name='process_results.csv'):
         csv_path = base_path
     return csv_path
 
+
 def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, timeout=30):
     """ドキュメントまたはプレゼンテーションを読み取り専用に設定します。タイムアウト機能付き。"""
     def target(result_queue):
@@ -34,7 +37,8 @@ def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, 
                 word = win32.gencache.EnsureDispatch('Word.Application')
                 doc = word.Documents.Open(filepath)
                 if doc.ProtectionType == win32.constants.wdNoProtection:
-                    doc.Protect(Type=win32.constants.wdAllowOnlyReading, NoReset=True, Password=edit_password)
+                    doc.Protect(Type=win32.constants.wdAllowOnlyReading,
+                                NoReset=True, Password=edit_password)
                     result_queue.put('OK')
                 else:
                     result_queue.put('PASS')  # 既に保護されている場合
@@ -42,13 +46,12 @@ def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, 
                 doc.Close(False)
                 word.Quit()
             elif filepath.endswith('.pptx'):
-                powerpoint = win32.gencache.EnsureDispatch('PowerPoint.Application')
+                powerpoint = win32.gencache.EnsureDispatch(
+                    'PowerPoint.Application')
                 try:
-                    presentation = powerpoint.Presentations.Open(filepath, WithWindow=False)
+                    presentation = powerpoint.Presentations.Open(
+                        filepath, WithWindow=False)
                     # 書き込みパスワードを設定
-                    presentation.PasswordEncryptionProvider = "Office Standard"
-                    presentation.PasswordEncryptionAlgorithm = "RC4"
-                    presentation.PasswordEncryptionKeyLength = 40
                     presentation.WritePassword = edit_password
                     # ファイルを保存して閉じる
                     presentation.Save()
@@ -73,18 +76,22 @@ def set_document_or_presentation_readonly_with_timeout(filepath, edit_password, 
         return 'TIMEOUT'
     return result_queue.get()
 
+
 def process_directory_for_documents(directory, edit_password):
     """ディレクトリ内のdocxおよびpptxファイルを処理します。"""
     results = []
-    total_files = sum([len([file for file in files if file.endswith('.docx') or file.endswith('.pptx')]) for _, _, files in os.walk(directory)])
+    total_files = sum([len(files) for _, _, files in os.walk(directory) if any(
+        file.endswith(('.docx', '.pptx')) for file in files)])
     print(f"合計で処理するファイルの数: {total_files}")
 
     file_count = 0
     for root, _, files in os.walk(directory):
         for file in filter(lambda f: f.endswith('.docx') or f.endswith('.pptx'), files):
             filepath = os.path.join(root, file)
-            result = set_document_or_presentation_readonly_with_timeout(filepath, edit_password)
-            results.append({'NAME': os.path.basename(filepath), 'RESULT': result, 'PATH': filepath})
+            result = set_document_or_presentation_readonly_with_timeout(
+                filepath, edit_password)
+            results.append({'NAME': os.path.basename(filepath),
+                           'RESULT': result, 'PATH': filepath})
             file_count += 1
             print_progress(file, result, file_count, total_files)
 
@@ -92,10 +99,12 @@ def process_directory_for_documents(directory, edit_password):
         print("指定されたディレクトリに対象のファイルが見つかりません。")
     return results
 
+
 def print_progress(file_name, result, file_count, total_files):
     """処理の進捗を表示します。"""
     current_time = datetime.now().strftime("%H:%M:%S")
     print(f"[{current_time}][{result}] {file_count}/{total_files} | {file_name}")
+
 
 def write_results_to_csv(results, csv_path):
     """結果をCSVに書き込みます。"""
@@ -106,6 +115,7 @@ def write_results_to_csv(results, csv_path):
         for result in results:
             writer.writerow(result)
     print(f"CSVに結果を書き込みました: {csv_path}")
+
 
 if __name__ == '__main__':
     edit_password = 'your_edit_password'  # ここに適切なパスワードを設定してください
