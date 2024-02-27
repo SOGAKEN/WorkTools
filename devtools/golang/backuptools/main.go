@@ -10,24 +10,20 @@ import (
 )
 
 func main() {
-	// 実行ファイルのディレクトリを取得
 	exePath, err := os.Executable()
 	if err != nil {
 		panic(err)
 	}
 	baseDir := filepath.Dir(exePath)
 	backupDir := filepath.Join(baseDir, "backup")
-	// CSVファイルのパスを定義
 	csvFilePath := filepath.Join(baseDir, "backup_results.csv")
 
-	// backupディレクトリがなければ作成
 	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
 		if err := os.Mkdir(backupDir, 0755); err != nil {
 			panic(err)
 		}
 	}
 
-	// CSVファイルを開く（なければ作成）
 	csvFile, err := os.OpenFile(csvFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		panic(err)
@@ -39,11 +35,9 @@ func main() {
 		panic(err)
 	}
 
-	// CSVライターを作成
 	csvWriter := csv.NewWriter(csvFile)
 	defer csvWriter.Flush()
 
-	// ファイルシステムを再帰的に探索し、ファイルをコピー
 	err = filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
@@ -52,7 +46,7 @@ func main() {
 			}
 			return err
 		}
-		if strings.HasPrefix(filepath.Base(path), ".") {
+		if strings.HasPrefix(filepath.Base(path), ".") || strings.HasPrefix(filepath.Base(path), "~$") {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -77,7 +71,6 @@ func main() {
 			return err
 		}
 
-		// ファイルをコピーし、結果をCSVに記録
 		err = copyFile(path, destPath)
 		result := "OK"
 		if err != nil {
@@ -92,6 +85,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// バックアップ後処理: `backup`ディレクトリ内の`~$`で始まるファイルを削除
+	cleanupBackupDir(backupDir)
 }
 
 func copyFile(src, dest string) error {
@@ -109,4 +105,19 @@ func copyFile(src, dest string) error {
 
 	_, err = io.Copy(output, input)
 	return err
+}
+
+func cleanupBackupDir(dirPath string) {
+	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(filepath.Base(path), "~$") {
+			fmt.Println("一時ファイルを削除:", path)
+			if err := os.Remove(path); err != nil {
+				fmt.Println("削除エラー:", err)
+			}
+		}
+		return nil
+	})
 }
