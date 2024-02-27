@@ -74,18 +74,34 @@ def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
 
 def process_directory_for_documents(directory, edit_password):
     results = []
+    # `~$`で始まるファイルを除外する条件を追加
     total_files = sum(
         [
-            len(files)
+            len(
+                [
+                    file
+                    for file in files
+                    if (
+                        file.endswith(".docx")
+                        or file.endswith(".pptx")
+                        or file.endswith(".xlsx")
+                    )
+                    and not file.startswith("~$")
+                ]
+            )
             for _, _, files in os.walk(directory)
-            if any(file.endswith((".docx", ".pptx", ".xlsx")) for file in files)
         ]
     )
     print(f"合計で処理するファイルの数: {total_files}")
 
     file_count = 0
     for root, _, files in os.walk(directory):
-        for file in filter(lambda f: f.endswith((".docx", ".pptx", ".xlsx")), files):
+        for file in filter(
+            lambda f: (
+                f.endswith((".docx", ".pptx", ".xlsx")) and not f.startswith("~$")
+            ),
+            files,
+        ):
             filepath = os.path.join(root, file)
             result = set_readonly_with_timeout(filepath, edit_password)
             results.append(
