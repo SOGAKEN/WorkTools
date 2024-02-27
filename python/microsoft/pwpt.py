@@ -1,5 +1,6 @@
 import os
 import sys
+import csv
 import win32com.client
 import pythoncom
 from threading import Thread
@@ -60,7 +61,8 @@ def worker(file_path, password, extension, result_queue):
 def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
     result_queue = Queue()
     extension = os.path.splitext(file_path)[1].lower()
-    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(
+        file_path, password, extension, result_queue))
     thread.start()
     thread.join(timeout=timeout_seconds)
     if thread.is_alive():
@@ -74,7 +76,6 @@ def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
 
 def process_directory_for_documents(directory, edit_password):
     results = []
-    # `~$`で始まるファイルを除外してファイル数をカウント
     total_files = sum(
         [
             len(
@@ -118,6 +119,15 @@ def print_progress(file_name, result, file_count, total_files):
     print(f"[{current_time}][{result}] {file_count}/{total_files} | {file_name}")
 
 
+def write_results_to_csv(results, output_csv_path):
+    with open(output_csv_path, "w", newline="", encoding="utf-8") as csvfile:
+        fieldnames = ["NAME", "RESULT", "PATH"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for result in results:
+            writer.writerow(result)
+
+
 def get_application_path():
     if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
@@ -128,11 +138,14 @@ def get_application_path():
 if __name__ == "__main__":
     edit_password = "your_edit_password"
     current_directory = get_application_path()
-    os.chdir(current_directory)  # カレントディレクトリを変更
+    os.chdir(current_directory)
     print("Starting file processing...")
     results = process_directory_for_documents(current_directory, edit_password)
     if results:
         print(f"Results have been processed.")
+        output_csv_path = os.path.join(current_directory, "results.csv")
+        write_results_to_csv(results, output_csv_path)
+        print(f"Results have been saved to {output_csv_path}.")
     else:
         print("No files were processed.")
     input("Processing complete. Press Enter to exit...")
