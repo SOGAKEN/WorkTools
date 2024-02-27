@@ -7,9 +7,6 @@ from queue import Queue
 
 
 def open_office_application(extension):
-    """
-    Officeアプリケーションを開くためのヘルパー関数。
-    """
     apps = {
         ".pptx": "PowerPoint.Application",
         ".docx": "Word.Application",
@@ -27,33 +24,46 @@ def open_office_application(extension):
 
 def set_password_pptx(app, file_path, password):
     doc = app.Presentations.Open(file_path, WithWindow=False)
-    doc.WritePassword = password
-    doc.Save()
-    doc.Close()
+    try:
+        doc.WritePassword = password
+        doc.Save()
+    finally:
+        doc.Close()
 
 
 def set_password_docx(app, file_path, password):
     doc = app.Documents.Open(file_path)
-    doc.WritePassword = password
-    doc.SaveAs2(file_path, WritePassword=password)
-    doc.Close()
+    try:
+        doc.WritePassword = password
+        doc.SaveAs2(file_path, WritePassword=password)
+    finally:
+        doc.Close()
 
 
 def set_password_xlsx(app, file_path, password, result_queue):
     app.Visible = False
-    doc = app.Workbooks.Open(file_path)
-    if doc.WriteReserved:
-        result_queue.put(
-            ("PASS", "File is password protected or another error occurred")
-        )
-    else:
-        doc.Password = password
-        doc.SaveAs(file_path, Password="", WriteResPassword=password)
-    doc.Close()
+    doc = None
+    try:
+        doc = app.Workbooks.Open(file_path)
+        if doc.WriteReserved:
+            result_queue.put(
+                ("PASS", "File is password protected or another error occurred")
+            )
+        else:
+            doc.Password = password
+            doc.SaveAs(file_path, Password="", WriteResPassword=password)
+            result_queue.put(("OK", "Password set successfully"))
+    except Exception as e:
+        result_queue.put(("ERROR", f"Error setting password: {e}"))
+    finally:
+        if doc is not None:
+            doc.Close()
+        app.Quit()
 
 
 def set_password_office(file_path, password, result_queue):
     pythoncom.CoInitialize()
+    app = None
     try:
         extension = os.path.splitext(file_path)[1].lower()
         app = open_office_application(extension)
@@ -65,19 +75,17 @@ def set_password_office(file_path, password, result_queue):
             set_password_xlsx(app, file_path, password, result_queue)
         else:
             result_queue.put(("NG", "Unsupported file type"))
-            return
-        app.Quit()
-        result_queue.put(("OK", "Password set successfully"))
     except Exception as e:
         result_queue.put(("ERROR", f"Error setting password: {e}"))
     finally:
+        if app is not None:
+            app.Quit()
         pythoncom.CoUninitialize()
 
 
 def process_file(file_path, password):
     result_queue = Queue()
-    timer = Timer(10.0, lambda: result_queue.put(
-        ("TIMEOUT", "Operation timed out")))
+    timer = Timer(10.0, lambda: result_queue.put(("TIMEOUT", "Operation timed out")))
     try:
         timer.start()
         set_password_office(file_path, password, result_queue)
@@ -96,8 +104,7 @@ def process_directory_for_documents(directory, password):
                 print(f"Processing {file_path}...")
                 try:
                     result = process_file(file_path, password)
-                    results.append(
-                        (os.path.basename(file_path), file_path, result[1]))
+                    results.append((os.path.basename(file_path), file_path, result[1]))
                     print(f"{file_path}: {result[1]}")
                 except Exception as e:
                     print(f"Error processing {file_path}: {e}")
