@@ -50,22 +50,28 @@ def process_file(file_path, password):
 
 def process_directory_for_documents(directory, password):
     results = []
+    file_count = 0
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith((".pptx", ".docx", ".xlsx")):
                 file_path = os.path.join(root, file)
+                print(f"Processing {file_path}...")
                 try:
                     result = process_file(file_path, password)
                     results.append(
                         (os.path.basename(file_path), file_path, result[1]))
+                    print(f"{file_path}: {result[1]}")
                 except Exception as e:
                     print(f"Error processing {file_path}: {e}")
                     continue  # Skip this file and continue with the next
+                finally:
+                    file_count += 1
+    print(f"Total files processed: {file_count}")
     return results
 
 
 def write_results_to_csv(results, output_csv_path):
-    with open(output_csv_path, "w", newline="", encoding="utf-8") as csvfile:
+    with open(output_csv_path, "w", newline="", encoding="utf-8-sig") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["FileName", "FilePath", "Result"])
         for result in results:
@@ -83,6 +89,7 @@ def get_csv_path():
 if __name__ == "__main__":
     edit_password = "your_edit_password"  # Set the appropriate password here
     current_directory = get_application_path()
+    print("Starting file processing...")
     results = process_directory_for_documents(current_directory, edit_password)
     if results:
         output_csv_path = get_csv_path()
