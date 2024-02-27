@@ -61,19 +61,13 @@ def worker(file_path, password, extension, result_queue):
         pythoncom.CoUninitialize()
 
 
-def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
+def set_readonly(file_path, password, extension):
     result_queue = Queue()
-    extension = os.path.splitext(file_path)[1].lower()
-    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(
+        file_path, password, extension, result_queue))
     thread.start()
-    thread.join(timeout=timeout_seconds)
-    if thread.is_alive():
-        print(
-            f"WARNING: Processing of {file_path} timed out. The application may still be open."
-        )
-        return "TIMEOUT"
-    else:
-        return result_queue.get()
+    thread.join()  # タイムアウト指定を削除
+    return result_queue.get()
 
 
 def process_directory_for_documents(directory, edit_password):
@@ -100,7 +94,9 @@ def process_directory_for_documents(directory, edit_password):
         for file in files:
             if file.endswith((".docx", ".pptx", ".xlsx")) and not file.startswith("~$"):
                 filepath = os.path.join(root, file)
-                result = set_readonly_with_timeout(filepath, edit_password)
+                result = set_readonly(
+                    filepath, edit_password, os.path.splitext(file)[1].lower()
+                )
                 results.append(
                     {
                         "NAME": os.path.basename(filepath),
