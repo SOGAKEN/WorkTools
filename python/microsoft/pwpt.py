@@ -1,8 +1,9 @@
 import os
 import csv
+import sys
 import win32com.client
 import pythoncom
-from threading import Thread, Timer
+from threading import Thread
 from queue import Queue
 
 
@@ -42,7 +43,7 @@ def set_password_docx(app, file_path, password):
 
 def set_password_xlsx(app, file_path, password, result_queue):
     app.Visible = False
-    app.DisplayAlerts = False  # アラートを表示しない
+    app.DisplayAlerts = False
     doc = None
     try:
         doc = app.Workbooks.Open(file_path)
@@ -84,18 +85,25 @@ def set_password_office(file_path, password, result_queue):
         pythoncom.CoUninitialize()
 
 
-def process_file(file_path, password, timeout_seconds=30):
+def process_file(file_path, password):
     result_queue = Queue()
     thread = Thread(
         target=set_password_office, args=(file_path, password, result_queue)
     )
     thread.start()
-    thread.join(timeout=timeout_seconds)
+    thread.join()
     if thread.is_alive():
         print(f"Processing of {file_path} timed out.")
         return file_path, ("TIMEOUT", "Operation timed out")
     else:
         return file_path, result_queue.get()
+
+
+def get_application_path():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
 
 
 def process_directory_for_documents(directory, password):
@@ -123,21 +131,14 @@ def write_results_to_csv(results, output_csv_path):
             writer.writerow(result)
 
 
-def get_application_path():
-    return os.path.dirname(os.path.abspath(__file__))
-
-
-def get_csv_path():
-    return os.path.join(get_application_path(), "results.csv")
-
-
 if __name__ == "__main__":
-    edit_password = "your_edit_password"  # Set the appropriate password here
-    current_directory = get_application_path()
+    os.chdir(get_application_path())  # カレントディレクトリを実行ファイルの場所に設定
+    edit_password = "your_edit_password"
+    current_directory = os.getcwd()  # カレントディレクトリを使用
     print("Starting file processing...")
     results = process_directory_for_documents(current_directory, edit_password)
     if results:
-        output_csv_path = get_csv_path()
+        output_csv_path = os.path.join(get_application_path(), "results.csv")
         write_results_to_csv(results, output_csv_path)
         print(f"Results have been saved to {output_csv_path}.")
     else:
