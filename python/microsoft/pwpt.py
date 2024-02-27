@@ -60,7 +60,8 @@ def worker(file_path, password, extension, result_queue):
 def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
     result_queue = Queue()
     extension = os.path.splitext(file_path)[1].lower()
-    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(
+        file_path, password, extension, result_queue))
     thread.start()
     thread.join(timeout=timeout_seconds)
     if thread.is_alive():
@@ -74,22 +75,15 @@ def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
 
 def process_directory_for_documents(directory, edit_password):
     results = []
-    # `~$`で始まるファイルを除外する条件を追加
     total_files = sum(
         [
-            len(
-                [
-                    file
-                    for file in files
-                    if (
-                        file.endswith(".docx")
-                        or file.endswith(".pptx")
-                        or file.endswith(".xlsx")
-                    )
-                    and not file.startswith("~$")
-                ]
-            )
+            len(files)
             for _, _, files in os.walk(directory)
+            if any(
+                file.endswith((".docx", ".pptx", ".xlsx")
+                              ) and not file.startswith("~$")
+                for file in files
+            )
         ]
     )
     print(f"合計で処理するファイルの数: {total_files}")
@@ -98,14 +92,16 @@ def process_directory_for_documents(directory, edit_password):
     for root, _, files in os.walk(directory):
         for file in filter(
             lambda f: (
-                f.endswith((".docx", ".pptx", ".xlsx")) and not f.startswith("~$")
+                f.endswith((".docx", ".pptx", ".xlsx")
+                           ) and not f.startswith("~$")
             ),
             files,
         ):
             filepath = os.path.join(root, file)
             result = set_readonly_with_timeout(filepath, edit_password)
             results.append(
-                {"NAME": os.path.basename(filepath), "RESULT": result, "PATH": filepath}
+                {"NAME": os.path.basename(
+                    filepath), "RESULT": result, "PATH": filepath}
             )
             file_count += 1
             print_progress(file, result, file_count, total_files)
