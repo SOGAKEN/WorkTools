@@ -15,54 +15,58 @@ def open_office_application(extension):
     }
     app_name = apps.get(extension)
     if app_name:
-        if extension in [".docx", ".xlsx"]:
-            return win32com.client.Dispatch(app_name)
-        else:
-            return win32com.client.gencache.EnsureDispatch(app_name)
+        return win32com.client.Dispatch(app_name)
     else:
         raise ValueError("Unsupported file type")
 
 
-def set_document_or_presentation_readonly(app, file_path, password):
-    extension = os.path.splitext(file_path)[1].lower()
-    if extension == ".pptx":
-        doc = app.Presentations.Open(file_path, WithWindow=False)
-        doc.WritePassword = password
-        doc.Save()
-        doc.Close()
-    elif extension == ".docx":
-        doc = app.Documents.Open(file_path)
-        doc.WritePassword = password
-        doc.SaveAs2(file_path, WritePassword=password)
-        doc.Close()
-    elif extension == ".xlsx":
-        app.DisplayAlerts = False
-        doc = app.Workbooks.Open(file_path)
-        doc.SaveAs(file_path, Password="", WriteResPassword=password)
-        doc.Close()
-    app.Quit()
-
-
-def set_document_or_presentation_readonly_with_timeout(
-    file_path, password, timeout_seconds=30
+def set_document_or_presentation_readonly(
+    app, file_path, password, extension, result_queue
 ):
+    try:
+        if extension == ".pptx":
+            doc = app.Presentations.Open(file_path, WithWindow=False)
+            doc.WritePassword = password
+            doc.Save()
+            doc.Close()
+        elif extension == ".docx":
+            doc = app.Documents.Open(file_path)
+            doc.WritePassword = password
+            doc.SaveAs2(file_path, WritePassword=password)
+            doc.Close()
+        elif extension == ".xlsx":
+            app.DisplayAlerts = False
+            doc = app.Workbooks.Open(file_path)
+            doc.SaveAs(file_path, Password="", WriteResPassword=password)
+            doc.Close()
+        result_queue.put("SUCCESS")
+    except Exception as e:
+        result_queue.put(f"ERROR: {e}")
+    finally:
+        app.Quit()
+
+
+def worker(file_path, password, extension, result_queue):
+    pythoncom.CoInitialize()
+    try:
+        app = open_office_application(extension)
+        set_document_or_presentation_readonly(
+            app, file_path, password, extension, result_queue
+        )
+    finally:
+        pythoncom.CoUninitialize()
+
+
+def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
     result_queue = Queue()
-
-    def worker():
-        pythoncom.CoInitialize()
-        try:
-            app = open_office_application(os.path.splitext(file_path)[1].lower())
-            set_document_or_presentation_readonly(app, file_path, password)
-            result_queue.put("SUCCESS")
-        except Exception as e:
-            result_queue.put(f"ERROR: {e}")
-        finally:
-            pythoncom.CoUninitialize()
-
-    thread = Thread(target=worker)
+    extension = os.path.splitext(file_path)[1].lower()
+    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
     thread.start()
     thread.join(timeout=timeout_seconds)
     if thread.is_alive():
+        print(
+            f"WARNING: Processing of {file_path} timed out. The application may still be open."
+        )
         return "TIMEOUT"
     else:
         return result_queue.get()
@@ -72,8 +76,9 @@ def process_directory_for_documents(directory, edit_password):
     results = []
     total_files = sum(
         [
-            len([file for file in files if file.endswith((".docx", ".pptx", ".xlsx"))])
+            len(files)
             for _, _, files in os.walk(directory)
+            if any(file.endswith((".docx", ".pptx", ".xlsx")) for file in files)
         ]
     )
     print(f"合計で処理するファイルの数: {total_files}")
@@ -82,9 +87,7 @@ def process_directory_for_documents(directory, edit_password):
     for root, _, files in os.walk(directory):
         for file in filter(lambda f: f.endswith((".docx", ".pptx", ".xlsx")), files):
             filepath = os.path.join(root, file)
-            result = set_document_or_presentation_readonly_with_timeout(
-                filepath, edit_password
-            )
+            result = set_readonly_with_timeout(filepath, edit_password)
             results.append(
                 {"NAME": os.path.basename(filepath), "RESULT": result, "PATH": filepath}
             )
@@ -111,7 +114,7 @@ def get_application_path():
 if __name__ == "__main__":
     edit_password = "your_edit_password"
     current_directory = get_application_path()
-    os.chdir(current_directory)
+    os.chdir(current_directory)  # カレントディレクトリを変更
     print("Starting file processing...")
     results = process_directory_for_documents(current_directory, edit_password)
     if results:
