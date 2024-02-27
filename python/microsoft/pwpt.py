@@ -22,6 +22,46 @@ def open_office_application(extension):
         raise ValueError("Unsupported file type")
 
 
+def set_password_pptx(app, file_path, password):
+    doc = app.Presentations.Open(file_path, WithWindow=False)
+    try:
+        doc.WritePassword = password
+        doc.Save()
+    finally:
+        doc.Close()
+
+
+def set_password_docx(app, file_path, password):
+    doc = app.Documents.Open(file_path)
+    try:
+        doc.WritePassword = password
+        doc.SaveAs2(file_path, WritePassword=password)
+    finally:
+        doc.Close()
+
+
+def set_password_xlsx(app, file_path, password, result_queue):
+    app.Visible = False
+    app.DisplayAlerts = False  # アラートを表示しない
+    doc = None
+    try:
+        doc = app.Workbooks.Open(file_path)
+        if doc.WriteReserved:
+            result_queue.put(
+                ("PASS", "File is password protected or another error occurred")
+            )
+        else:
+            doc.Password = password
+            doc.SaveAs(file_path, Password="", WriteResPassword=password)
+            result_queue.put(("OK", "Password set successfully"))
+    except Exception as e:
+        result_queue.put(("ERROR", f"Error setting password: {e}"))
+    finally:
+        if doc is not None:
+            doc.Close()
+        app.Quit()
+
+
 def set_password_office(file_path, password, result_queue):
     pythoncom.CoInitialize()
     app = None
@@ -29,25 +69,13 @@ def set_password_office(file_path, password, result_queue):
         extension = os.path.splitext(file_path)[1].lower()
         app = open_office_application(extension)
         if extension == ".pptx":
-            doc = app.Presentations.Open(file_path, WithWindow=False)
-            doc.WritePassword = password
-            doc.Save()
-            doc.Close()
+            set_password_pptx(app, file_path, password)
         elif extension == ".docx":
-            doc = app.Documents.Open(file_path)
-            doc.WritePassword = password
-            doc.SaveAs2(file_path, WritePassword=password)
-            doc.Close()
+            set_password_docx(app, file_path, password)
         elif extension == ".xlsx":
-            app.Visible = False
-            doc = app.Workbooks.Open(file_path)
-            if not doc.WriteReserved:
-                doc.Password = password
-                doc.SaveAs(file_path, Password=password)
-            doc.Close()
+            set_password_xlsx(app, file_path, password, result_queue)
         else:
-            raise ValueError("Unsupported file type")
-        result_queue.put(("OK", "Password set successfully"))
+            result_queue.put(("NG", "Unsupported file type"))
     except Exception as e:
         result_queue.put(("ERROR", f"Error setting password: {e}"))
     finally:
@@ -56,7 +84,7 @@ def set_password_office(file_path, password, result_queue):
         pythoncom.CoUninitialize()
 
 
-def process_file_with_timeout(file_path, password, timeout_seconds=30):
+def process_file(file_path, password, timeout_seconds=30):
     result_queue = Queue()
     thread = Thread(
         target=set_password_office, args=(file_path, password, result_queue)
@@ -64,22 +92,26 @@ def process_file_with_timeout(file_path, password, timeout_seconds=30):
     thread.start()
     thread.join(timeout=timeout_seconds)
     if thread.is_alive():
-        return ("TIMEOUT", "Operation timed out")
+        print(f"Processing of {file_path} timed out.")
+        return file_path, ("TIMEOUT", "Operation timed out")
     else:
-        return result_queue.get()
+        return file_path, result_queue.get()
 
 
 def process_directory_for_documents(directory, password):
     results = []
+    file_count = 0
     for root, dirs, files in os.walk(directory):
         for file in files:
             if file.endswith((".pptx", ".docx", ".xlsx")):
                 file_path = os.path.join(root, file)
                 print(f"Processing {file_path}...")
-                result = process_file_with_timeout(file_path, password)
+                result = process_file(file_path, password)
                 results.append(
-                    (os.path.basename(file_path), file_path, result))
-                print(f"{file_path}: {result}")
+                    (os.path.basename(file_path), file_path, result[1]))
+                print(f"{file_path}: {result[1]}")
+                file_count += 1
+    print(f"Total files processed: {file_count}")
     return results
 
 
@@ -88,7 +120,7 @@ def write_results_to_csv(results, output_csv_path):
         writer = csv.writer(csvfile)
         writer.writerow(["FileName", "FilePath", "Result"])
         for result in results:
-            writer.writerow([result[0], result[1], result[2][1]])
+            writer.writerow(result)
 
 
 def get_application_path():
