@@ -6,6 +6,34 @@ import pythoncom
 from threading import Thread
 from queue import Queue
 from datetime import datetime
+from pywinauto.application import Application
+from pywinauto.findwindows import find_window
+import time
+
+
+class DialogWatcher(Thread):
+    def __init__(self, titles, button_title="キャンセル"):
+        super().__init__(daemon=True)
+        self.titles = titles
+        self.button_title = button_title
+        self.running = True
+
+    def run(self):
+        while self.running:
+            for title in self.titles:
+                try:
+                    hwnd = find_window(title=title)
+                    if hwnd:
+                        app = Application().connect(handle=hwnd)
+                        dialog = app.window(handle=hwnd)
+                        dialog[self.button_title].click()
+                        print(f"Clicked '{self.button_title}' on '{title}' dialog")
+                except Exception as e:
+                    print(f"Error handling dialog: {e}")
+            time.sleep(5)  # 5秒ごとに確認
+
+    def stop(self):
+        self.running = False
 
 
 def open_office_application(extension):
@@ -63,8 +91,7 @@ def worker(file_path, password, extension, result_queue):
 
 def set_readonly(file_path, password, extension):
     result_queue = Queue()
-    thread = Thread(target=worker, args=(
-        file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
     thread.start()
     thread.join()  # タイムアウト指定を削除
     return result_queue.get()
@@ -138,7 +165,15 @@ if __name__ == "__main__":
     current_directory = get_application_path()
     os.chdir(current_directory)
     print("Starting file processing...")
+
+    dialog_watcher = DialogWatcher(titles=["確認ウィンドウ1", "確認ウィンドウ2"])
+    dialog_watcher.start()
+
     results = process_directory_for_documents(current_directory, edit_password)
+
+    dialog_watcher.stop()
+    dialog_watcher.join()
+
     if results:
         print(f"Results have been processed.")
         output_csv_path = os.path.join(current_directory, "results.csv")
