@@ -120,7 +120,9 @@ def print_progress(file_name, result, file_count, total_files):
 
 
 def write_results_to_csv(results, output_csv_path):
-    with open(output_csv_path, "w", newline="", encoding="utf-8") as csvfile:
+    with open(
+        output_csv_path, "w", newline="", encoding="utf-8-sig"
+    ) as csvfile:  # BOM付きUTF-8で開く
         fieldnames = ["NAME", "RESULT", "PATH"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
