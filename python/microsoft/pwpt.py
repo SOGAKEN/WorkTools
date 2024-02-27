@@ -16,7 +16,10 @@ def open_office_application(extension):
     }
     app_name = apps.get(extension)
     if app_name:
-        return win32com.client.Dispatch(app_name)
+        if extension == ".xlsx":  # Excelの場合のみgencache.EnsureDispatchを使用
+            return win32com.client.gencache.EnsureDispatch(app_name)
+        else:
+            return win32com.client.Dispatch(app_name)
     else:
         raise ValueError("Unsupported file type")
 
@@ -61,8 +64,7 @@ def worker(file_path, password, extension, result_queue):
 def set_readonly_with_timeout(file_path, password, timeout_seconds=30):
     result_queue = Queue()
     extension = os.path.splitext(file_path)[1].lower()
-    thread = Thread(target=worker, args=(
-        file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
     thread.start()
     thread.join(timeout=timeout_seconds)
     if thread.is_alive():
@@ -120,9 +122,7 @@ def print_progress(file_name, result, file_count, total_files):
 
 
 def write_results_to_csv(results, output_csv_path):
-    with open(
-        output_csv_path, "w", newline="", encoding="utf-8-sig"
-    ) as csvfile:  # BOM付きUTF-8で開く
+    with open(output_csv_path, "w", newline="", encoding="utf-8-sig") as csvfile:
         fieldnames = ["NAME", "RESULT", "PATH"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
