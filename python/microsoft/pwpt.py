@@ -10,36 +10,51 @@ import time
 import win32gui
 import win32con
 import win32api
+import logging
+
+
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class DialogWatcher(Thread):
     def __init__(self, titles, buttons=["キャンセル", "閉じる", "中止"]):
         super().__init__(daemon=True)
         self.titles = titles
-        self.buttons = buttons  # 複数のボタンをリストで保持
+        self.buttons = buttons
         self.running = True
 
     def run(self):
+        logging.info("DialogWatcher started.")
         while self.running:
             for title in self.titles:
-                hwnd = win32gui.FindWindow(None, title)
-                if hwnd:
-                    self.handle_dialog(hwnd)
+                try:
+                    hwnd = win32gui.FindWindow(None, title)
+                    if hwnd:
+                        logging.debug(
+                            f"Found window with title '{title}': {hwnd}")
+                        self.handle_dialog(hwnd)
+                    else:
+                        logging.debug(f"No window found with title '{title}'.")
+                except Exception as e:
+                    logging.error(
+                        f"Error finding window with title '{title}': {e}")
             time.sleep(5)  # 5秒ごとに確認
+        logging.info("DialogWatcher stopped.")
 
     def handle_dialog(self, hwnd):
         def enum_child_windows_proc(hwnd, lParam):
-            if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
-                text = win32gui.GetWindowText(hwnd)
-                if text in self.buttons:  # リスト内の任意のボタンに一致する場合
-                    win32api.PostMessage(
-                        hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0
-                    )
-                    win32api.PostMessage(
-                        hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0
-                    )
-                    print(f"Clicked '{text}' on dialog")
-                    return  # ボタンをクリックした後は、他のボタンを探索しない
+            try:
+                if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+                    text = win32gui.GetWindowText(hwnd)
+                    if text in self.buttons:
+                        win32gui.SendMessage(hwnd, win32con.BM_CLICK, 0, 0)
+                        logging.info(f"Clicked '{text}' button on dialog.")
+                        return True
+            except Exception as e:
+                logging.error(f"Error handling dialog: {e}")
+                return False
 
         win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
 
