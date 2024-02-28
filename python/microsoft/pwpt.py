@@ -43,33 +43,28 @@ class DialogWatcher(Thread):
             time.sleep(5)  # 5秒ごとに確認
         logging.info("DialogWatcher stopped.")
 
-        def handle_dialog(self, hwnd):
-            def enum_child_windows_proc(hwnd, lParam):
-                # ボタンテキストの取得
-                length = win32gui.SendMessage(
-                    hwnd, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
-                buff = win32gui.PyMakeBuffer(length)
-                win32gui.SendMessage(hwnd, win32con.WM_GETTEXT, length, buff)
-                text = str(buff)
 
-                # ボタンのクリック処理
-                if text in lParam:
-                    win32gui.PostMessage(
-                        hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0
-                    )
-                    win32gui.PostMessage(
-                        hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0
-                    )
-                    logging.info(f"Clicked '{text}' button on dialog")
-                    return
+def handle_dialog(self, hwnd):
+    def enum_child_windows_proc(hwnd, lParam):
+        if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+            length = win32gui.SendMessage(
+                hwnd, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
+            buff = win32gui.PyMakeBuffer(length)
+            win32gui.SendMessage(hwnd, win32con.WM_GETTEXT, length, buff)
+            text = (
+                buff[:length]
+                .tobytes()
+                .decode("utf-16le", errors="ignore")
+                .rstrip("\x00")
+            )
+            if text in self.buttons:
+                # BM_CLICK メッセージを直接ボタンに送信
+                win32gui.SendMessage(hwnd, win32con.BM_CLICK, 0, 0)
+                logging.info(f"Clicked '{text}' button on dialog")
+                return
+        win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, lParam)
 
-                # 子ウィンドウの再帰的な列挙
-                win32gui.EnumChildWindows(
-                    hwnd, enum_child_windows_proc, lParam)
-
-            # 再帰的な列挙を開始
-            win32gui.EnumChildWindows(
-                hwnd, enum_child_windows_proc, self.buttons)
+    win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
 
     def stop(self):
         self.running = False
