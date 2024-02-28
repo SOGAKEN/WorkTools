@@ -13,6 +13,7 @@ import win32api
 import logging
 
 
+# ログの設定
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -29,42 +30,35 @@ class DialogWatcher(Thread):
         logging.info("DialogWatcher started.")
         while self.running:
             for title in self.titles:
-                try:
-                    hwnd = win32gui.FindWindow(None, title)
-                    if hwnd:
-                        logging.debug(
-                            f"Found window with title '{title}': {hwnd}")
-                        self.handle_dialog(hwnd)
-                    else:
-                        logging.debug(f"No window found with title '{title}'.")
-                except Exception as e:
-                    logging.error(
-                        f"Error finding window with title '{title}': {e}")
+                hwnd = win32gui.FindWindow(None, title)
+                if hwnd:
+                    logging.debug(f"Found window with title '{title}': {hwnd}")
+                    self.handle_dialog(hwnd)
+                else:
+                    logging.debug(f"No window found with title '{title}'.")
             time.sleep(5)  # 5秒ごとに確認
         logging.info("DialogWatcher stopped.")
 
+    def handle_dialog(self, hwnd):
+        def enum_child_windows_proc(hwnd, _):
+            if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+                length = win32gui.SendMessage(
+                    hwnd, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
+                buff = win32gui.PyMakeBuffer(length)
+                win32gui.SendMessage(hwnd, win32con.WM_GETTEXT, length, buff)
+                text = (
+                    buff[:length]
+                    .tobytes()
+                    .decode("utf-16le", errors="ignore")
+                    .rstrip("\x00")
+                )
+                if text in self.buttons:
+                    win32gui.SendMessage(hwnd, win32con.BM_CLICK, 0, 0)
+                    logging.info(f"Clicked '{text}' button on dialog")
+                    return True  # ボタンが見つかったので、列挙を停止
+            return True  # 子ウィンドウの列挙を続ける
 
-def handle_dialog(self, hwnd):
-    def enum_child_windows_proc(hwnd, lParam):
-        if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
-            length = win32gui.SendMessage(
-                hwnd, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
-            buff = win32gui.PyMakeBuffer(length)
-            win32gui.SendMessage(hwnd, win32con.WM_GETTEXT, length, buff)
-            text = (
-                buff[:length]
-                .tobytes()
-                .decode("utf-16le", errors="ignore")
-                .rstrip("\x00")
-            )
-            if text in self.buttons:
-                # BM_CLICK メッセージを直接ボタンに送信
-                win32gui.SendMessage(hwnd, win32con.BM_CLICK, 0, 0)
-                logging.info(f"Clicked '{text}' button on dialog")
-                return
-        win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, lParam)
-
-    win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
+        win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
 
     def stop(self):
         self.running = False
