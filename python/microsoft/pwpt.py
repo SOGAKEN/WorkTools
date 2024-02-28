@@ -13,10 +13,10 @@ import win32api
 
 
 class DialogWatcher(Thread):
-    def __init__(self, titles, button_title="キャンセル"):
+    def __init__(self, titles, buttons=["キャンセル", "閉じる", "中止"]):
         super().__init__(daemon=True)
         self.titles = titles
-        self.button_title = button_title
+        self.buttons = buttons  # 複数のボタンをリストで保持
         self.running = True
 
     def run(self):
@@ -31,14 +31,15 @@ class DialogWatcher(Thread):
         def enum_child_windows_proc(hwnd, lParam):
             if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
                 text = win32gui.GetWindowText(hwnd)
-                if text == self.button_title:
+                if text in self.buttons:  # リスト内の任意のボタンに一致する場合
                     win32api.PostMessage(
                         hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0
                     )
                     win32api.PostMessage(
                         hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0
                     )
-                    print(f"Clicked '{self.button_title}' on dialog")
+                    print(f"Clicked '{text}' on dialog")
+                    return  # ボタンをクリックした後は、他のボタンを探索しない
 
         win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
 
