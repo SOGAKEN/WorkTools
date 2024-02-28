@@ -6,9 +6,10 @@ import pythoncom
 from threading import Thread
 from queue import Queue
 from datetime import datetime
-from pywinauto.application import Application
-from pywinauto.findwindows import find_window
 import time
+import win32gui
+import win32con
+import win32api
 
 
 class DialogWatcher(Thread):
@@ -21,16 +22,25 @@ class DialogWatcher(Thread):
     def run(self):
         while self.running:
             for title in self.titles:
-                try:
-                    hwnd = find_window(title=title)
-                    if hwnd:
-                        app = Application().connect(handle=hwnd)
-                        dialog = app.window(handle=hwnd)
-                        dialog[self.button_title].click()
-                        print(f"Clicked '{self.button_title}' on '{title}' dialog")
-                except Exception as e:
-                    print(f"Error handling dialog: {e}")
+                hwnd = win32gui.FindWindow(None, title)
+                if hwnd:
+                    self.handle_dialog(hwnd)
             time.sleep(5)  # 5秒ごとに確認
+
+    def handle_dialog(self, hwnd):
+        def enum_child_windows_proc(hwnd, lParam):
+            if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+                text = win32gui.GetWindowText(hwnd)
+                if text == self.button_title:
+                    win32api.PostMessage(
+                        hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, 0
+                    )
+                    win32api.PostMessage(
+                        hwnd, win32con.WM_LBUTTONUP, win32con.MK_LBUTTON, 0
+                    )
+                    print(f"Clicked '{self.button_title}' on dialog")
+
+        win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
 
     def stop(self):
         self.running = False
@@ -91,7 +101,8 @@ def worker(file_path, password, extension, result_queue):
 
 def set_readonly(file_path, password, extension):
     result_queue = Queue()
-    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(
+        file_path, password, extension, result_queue))
     thread.start()
     thread.join()  # タイムアウト指定を削除
     return result_queue.get()
