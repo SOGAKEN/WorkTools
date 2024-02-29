@@ -1,8 +1,12 @@
 import csv
+import tkinter as tk
+from tkinter import filedialog
 
 
 def compare_files(file1_path, file2_path, output_csv):
-    with open(file1_path, "r") as file1, open(file2_path, "r") as file2:
+    with open(file1_path, "r", encoding="utf-8") as file1, open(
+        file2_path, "r", encoding="utf-8"
+    ) as file2:
         file1_lines = file1.readlines()
         file2_lines = file2.readlines()
 
@@ -13,7 +17,6 @@ def compare_files(file1_path, file2_path, output_csv):
         line1 = file1_lines[i].strip() if i < len(file1_lines) else ""
         line2 = file2_lines[i].strip() if i < len(file2_lines) else ""
         if line1 != line2:
-            # Line numbers are 1-indexed
             differences.append((i + 1, line1, line2))
 
     with open(output_csv, "w", newline="", encoding="utf-8") as csvfile:
@@ -32,9 +35,16 @@ def compare_files(file1_path, file2_path, output_csv):
     return differences
 
 
+def select_file(title="ファイルを選択"):
+    root = tk.Tk()
+    root.withdraw()  # Tkのルートウィンドウを表示しない
+    file_path = filedialog.askopenfilename(title=title)
+    return file_path
+
+
 if __name__ == "__main__":
-    file1_path = input("ファイル1のパスを入力してください: ")
-    file2_path = input("ファイル2のパスを入力してください: ")
+    file1_path = select_file("ファイル1を選択してください")
+    file2_path = select_file("ファイル2を選択してください")
     output_csv = "comparison_result.csv"
 
     compare_files(file1_path, file2_path, output_csv)
