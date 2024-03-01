@@ -7,11 +7,7 @@ from threading import Thread
 from queue import Queue
 from datetime import datetime
 import time
-import win32gui
-import win32con
-import win32api
 import logging
-
 
 # ログの設定
 logging.basicConfig(
@@ -19,63 +15,16 @@ logging.basicConfig(
 )
 
 
-class DialogWatcher(Thread):
-    def __init__(self, titles, buttons=["キャンセル", "閉じる", "中止"]):
-        super().__init__(daemon=True)
-        self.titles = titles
-        self.buttons = buttons
-        self.running = True
-
-    def run(self):
-        logging.info("DialogWatcher started.")
-        while self.running:
-            for title in self.titles:
-                hwnd = win32gui.FindWindow(None, title)
-                if hwnd:
-                    logging.debug(f"Found window with title '{title}': {hwnd}")
-                    self.handle_dialog(hwnd)
-                else:
-                    logging.debug(f"No window found with title '{title}'.")
-            time.sleep(5)  # 5秒ごとに確認
-        logging.info("DialogWatcher stopped.")
-
-    def handle_dialog(self, hwnd):
-        def enum_child_windows_proc(hwnd, _):
-            if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
-                length = win32gui.SendMessage(
-                    hwnd, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
-                buff = win32gui.PyMakeBuffer(length)
-                win32gui.SendMessage(hwnd, win32con.WM_GETTEXT, length, buff)
-                text = (
-                    buff[:length]
-                    .tobytes()
-                    .decode("utf-16le", errors="ignore")
-                    .rstrip("\x00")
-                )
-                if text in self.buttons:
-                    win32gui.SendMessage(hwnd, win32con.BM_CLICK, 0, 0)
-                    logging.info(f"Clicked '{text}' button on dialog")
-                    return True  # ボタンが見つかったので、列挙を停止
-            return True  # 子ウィンドウの列挙を続ける
-
-        win32gui.EnumChildWindows(hwnd, enum_child_windows_proc, None)
-
-    def stop(self):
-        self.running = False
-
-
 def open_office_application(extension):
     apps = {
         ".pptx": "PowerPoint.Application",
         ".docx": "Word.Application",
         ".xlsx": "Excel.Application",
+        ".xlsm": "Excel.Application",  # .xlsmファイルにも対応
     }
     app_name = apps.get(extension)
     if app_name:
-        if extension == ".xlsx":  # Excelの場合のみgencache.EnsureDispatchを使用
-            return win32com.client.gencache.EnsureDispatch(app_name)
-        else:
-            return win32com.client.Dispatch(app_name)
+        return win32com.client.gencache.EnsureDispatch(app_name)
     else:
         raise ValueError("Unsupported file type")
 
@@ -94,7 +43,7 @@ def set_document_or_presentation_readonly(
             doc.WritePassword = password
             doc.SaveAs2(file_path, WritePassword=password)
             doc.Close()
-        elif extension == ".xlsx":
+        elif extension in [".xlsx", ".xlsm"]:  # .xlsxと.xlsmの処理をまとめる
             app.DisplayAlerts = False
             doc = app.Workbooks.Open(file_path)
             doc.SaveAs(file_path, Password="", WriteResPassword=password)
@@ -119,8 +68,7 @@ def worker(file_path, password, extension, result_queue):
 
 def set_readonly(file_path, password, extension):
     result_queue = Queue()
-    thread = Thread(target=worker, args=(
-        file_path, password, extension, result_queue))
+    thread = Thread(target=worker, args=(file_path, password, extension, result_queue))
     thread.start()
     thread.join()  # タイムアウト指定を削除
     return result_queue.get()
@@ -134,10 +82,8 @@ def process_directory_for_documents(directory, edit_password):
                 [
                     file
                     for file in files
-                    if (
-                        file.endswith((".docx", ".pptx", ".xlsx"))
-                        and not file.startswith("~$")
-                    )
+                    if file.endswith((".docx", ".pptx", ".xlsx", ".xlsm"))
+                    and not file.startswith("~$")
                 ]
             )
             for _, _, files in os.walk(directory)
@@ -148,7 +94,9 @@ def process_directory_for_documents(directory, edit_password):
     file_count = 0
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith((".docx", ".pptx", ".xlsx")) and not file.startswith("~$"):
+            if file.endswith(
+                (".docx", ".pptx", ".xlsx", ".xlsm")
+            ) and not file.startswith("~$"):
                 filepath = os.path.join(root, file)
                 result = set_readonly(
                     filepath, edit_password, os.path.splitext(file)[1].lower()
@@ -195,13 +143,7 @@ if __name__ == "__main__":
     os.chdir(current_directory)
     print("Starting file processing...")
 
-    dialog_watcher = DialogWatcher(titles=["確認ウィンドウ1", "確認ウィンドウ2"])
-    dialog_watcher.start()
-
     results = process_directory_for_documents(current_directory, edit_password)
-
-    dialog_watcher.stop()
-    dialog_watcher.join()
 
     if results:
         print(f"Results have been processed.")
