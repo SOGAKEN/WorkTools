@@ -40,10 +40,17 @@ def extract_sections(
 def compare_sections(sections1, sections2):
     differences = []
     max_length = max(len(sections1), len(sections2))
+    section_counts = {}  # セクション名の出現回数を追跡する辞書
+    for section in sections1 + sections2:
+        section_name = section.split(" ", 1)[0]
+        section_counts[section_name] = section_counts.get(section_name, 0) + 1
     for i in range(max_length):
         section1 = sections1[i] if i < len(sections1) else ""
         section2 = sections2[i] if i < len(sections2) else ""
+        section_name1 = section1.split(" ", 1)[0]
+        section_name2 = section2.split(" ", 1)[0]
         if section1 != section2:
+            # 以下のロジックは削除または修正します
             differences.append((i + 1, section1, section2))
     return differences
 
@@ -113,7 +120,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
             result = "NG"
 
             # セクション名に数字を追加（複数回出現する場合のみ）
-            if section_appearances[section_name] > 1:
+            if section_appearances[section_name] > 2:
                 numbered_section_name = f"{section_name} {section_number}"
                 section_number += 1  # セクション番号をインクリメント
             else:
@@ -146,7 +153,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
         for i in range(common_length):
             if (i + 1, sections_file1[i], sections_file2[i]) not in differences:
                 result = "OK"
-                if section_appearances[section_name] > 1:
+                if section_appearances[section_name] > 2:
                     numbered_section_name = f"{section_name} {section_number}"
                     section_number += 1
                 else:
@@ -179,7 +186,7 @@ keywords_with_options = {
     "test": {"lines_to_include": 2, "section_name": "テストセクション"},
     "uniqu": {
         "lines_to_include": 1,
-        "comma_sections_to_compare": [0, 1],
+        "comma_sections_to_compare": [0, 1, 3],
         "section_name": "ユニークセクション",
     },
     "import": {"lines_to_include": 1, "section_name": "インポート"},
