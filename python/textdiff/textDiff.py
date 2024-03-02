@@ -76,25 +76,53 @@ def calculate_display_length(text):
 def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
     csv_data = []
     comparison_number = 1
-    # セクション名の表示幅の最大値を計算
-    max_section_display_length = max(
-        calculate_display_length(options.get("section_name", keyword))
-        for keyword, options in keywords_with_options.items()
+    section_counts = {}  # セクション名の出現回数を追跡する辞書
+    section_appearances = {}  # 全セクションの出現回数を計算するための辞書
+
+    # 全セクションの出現回数を計算
+    for keyword, options in keywords_with_options.items():
+        section_name = options.get("section_name", keyword)
+        section_appearances[section_name] = 0  # 初期化
+
+    for file in [file1, file2]:
+        for keyword, options in keywords_with_options.items():
+            section_name = options.get("section_name", keyword)
+            temp_options = {k: v for k,
+                            v in options.items() if k != "section_name"}
+            sections = extract_sections(file, keyword, **temp_options)
+            # セクションが存在するたびにカウントアップ
+            section_appearances[section_name] += len(sections)
+
+    # セクション名の表示幅の最大値を計算（数字を追加する前）
+    max_section_name_length = max(
+        calculate_display_length(section_name + " 999")
+        for section_name in section_appearances.keys()
     )
 
     for keyword, options in keywords_with_options.items():
-        section_name = options.pop("section_name", keyword)
-        sections_file1 = extract_sections(file1, keyword, **options)
-        sections_file2 = extract_sections(file2, keyword, **options)
+        section_name = options.get("section_name", keyword)
+        temp_options = {k: v for k, v in options.items() if k !=
+                        "section_name"}
+        sections_file1 = extract_sections(file1, keyword, **temp_options)
+        sections_file2 = extract_sections(file2, keyword, **temp_options)
         differences = compare_sections(sections_file1, sections_file2)
 
+        section_number = 1  # セクション番号をリセット
         for diff in differences:
-            section_number, section_file1, section_file2 = diff
+            _, section_file1, section_file2 = diff
             result = "NG"
+
+            # セクション名に数字を追加（複数回出現する場合のみ）
+            if section_appearances[section_name] > 1:
+                numbered_section_name = f"{section_name} {section_number}"
+                section_number += 1  # セクション番号をインクリメント
+            else:
+                numbered_section_name = section_name
+
             # セクション名の表示幅を調整
-            adjusted_section_name = section_name + " " * (
-                max_section_display_length -
-                calculate_display_length(section_name)
+            adjusted_section_name = numbered_section_name + " " * (
+                max_section_name_length
+                - calculate_display_length(numbered_section_name)
             )
             output_text = f"No. {comparison_number:<3} | セクション名: {adjusted_section_name} | Result: {result}"
             if result == "NG":
@@ -105,7 +133,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
             csv_data.append(
                 [
                     comparison_number,
-                    section_name,
+                    adjusted_section_name.strip(),
                     section_file1.strip(),
                     section_file2.strip(),
                     result,
@@ -113,22 +141,27 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
             )
             comparison_number += 1
 
+        # 差異がないセクションに対する処理
         common_length = min(len(sections_file1), len(sections_file2))
         for i in range(common_length):
             if (i + 1, sections_file1[i], sections_file2[i]) not in differences:
                 result = "OK"
-                # セクション名の表示幅を調整
-                adjusted_section_name = section_name + " " * (
-                    max_section_display_length -
-                    calculate_display_length(section_name)
+                if section_appearances[section_name] > 1:
+                    numbered_section_name = f"{section_name} {section_number}"
+                    section_number += 1
+                else:
+                    numbered_section_name = section_name
+
+                adjusted_section_name = numbered_section_name + " " * (
+                    max_section_name_length
+                    - calculate_display_length(numbered_section_name)
                 )
                 output_text = f"No. {comparison_number:<3} | セクション名: {adjusted_section_name} | Result: {result}"
                 print(output_text)
-                # CSVデータにセクション名を含める
                 csv_data.append(
                     [
                         comparison_number,
-                        section_name,
+                        adjusted_section_name.strip(),
                         sections_file1[i].strip(),
                         sections_file2[i].strip(),
                         result,
@@ -139,7 +172,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
     write_to_csv(output_csv, csv_data)
 
 
-# 使用例とその他の関数定義は省略
+# end
 
 # 使用例
 keywords_with_options = {
