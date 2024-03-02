@@ -56,6 +56,11 @@ def compare_sections(sections1, sections2):
 
 
 def write_to_csv(filename, data):
+    """CSVファイルにデータを書き込む。ファイル名に現在の日時を追加する"""
+    # 現在の日時を取得し、指定のフォーマットに変換
+    datetime_str = datetime.now().strftime("_%Y%m%d%H%M%S")
+    # 最終的なファイル名を生成
+    filename = f"{filename}{datetime_str}.csv"
     """CSVファイルにデータを書き込む"""
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
