@@ -81,7 +81,7 @@ def write_to_csv(filename, data):
     # 最終的なファイル名を生成
     filename = f"{filename}{datetime_str}.csv"
     """CSVファイルにデータを書き込む"""
-    with open(filename, "w", newline="", encoding="utf-8") as csvfile:
+    with open(filename, "w", newline="", encoding="utf-8-sig") as csvfile:
         writer = csv.writer(csvfile)
         # ヘッダーに'SectionName'を追加
         writer.writerow(["No.", "SectionName", "File1", "File2", "Result"])
@@ -123,7 +123,8 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
     for file in [file1, file2]:
         for keyword, options in keywords_with_options.items():
             section_name = options.get("section_name", keyword)
-            temp_options = {k: v for k, v in options.items() if k != "section_name"}
+            temp_options = {k: v for k,
+                            v in options.items() if k != "section_name"}
             sections = extract_sections(file, keyword, **temp_options)
             # セクションが存在するたびにカウントアップ
             section_appearances[section_name] += len(sections)
@@ -136,7 +137,8 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
 
     for keyword, options in keywords_with_options.items():
         section_name = options.get("section_name", keyword)
-        temp_options = {k: v for k, v in options.items() if k != "section_name"}
+        temp_options = {k: v for k, v in options.items() if k !=
+                        "section_name"}
         sections_file1 = extract_sections(file1, keyword, **temp_options)
         sections_file2 = extract_sections(file2, keyword, **temp_options)
         differences = compare_sections(sections_file1, sections_file2)
@@ -219,4 +221,5 @@ keywords_with_options = {
     "import": {"lines_to_include": 1, "section_name": "インポート"},
 }
 output_csv = "comparison_results"
-process_files_to_csv("file1.log", "file2.log", keywords_with_options, output_csv)
+process_files_to_csv("file1.log", "file2.log",
+                     keywords_with_options, output_csv)
