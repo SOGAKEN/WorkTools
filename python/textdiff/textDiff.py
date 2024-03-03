@@ -74,17 +74,18 @@ def compare_sections(sections1, sections2):
 
 def write_to_csv(filename, data):
     """CSVファイルにデータを書き込む。ファイル名に現在の日時を追加する"""
-    # 現在の日時を取得し、指定のフォーマットに変換
     datetime_str = datetime.now().strftime("_%Y%m%d%H%M%S")
-    # 最終的なファイル名を生成
     filename = f"{filename}{datetime_str}.csv"
-    """CSVファイルにデータを書き込む"""
     with open(filename, "w", newline="", encoding="utf-8-sig") as csvfile:
-        writer = csv.writer(csvfile)
-        # ヘッダーに'SectionName'を追加
+        writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(["No.", "SectionName", "File1", "File2", "Result"])
         for row in data:
-            writer.writerow(row)
+            # 各セルが文字列かどうかを確認し、必要に応じて文字列に変換
+            processed_row = [
+                (str(cell).replace("\n", "\n") if "\n" in str(cell) else str(cell))
+                for cell in row
+            ]
+            writer.writerow(processed_row)
 
 
 def print_with_color(text, color):
