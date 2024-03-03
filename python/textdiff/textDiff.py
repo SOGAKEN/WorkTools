@@ -66,8 +66,6 @@ def compare_sections(sections1, sections2):
     for i in range(max_length):
         section1 = sections1[i] if i < len(sections1) else ""
         section2 = sections2[i] if i < len(sections2) else ""
-        section_name1 = section1.split(" ", 1)[0]
-        section_name2 = section2.split(" ", 1)[0]
         if section1 != section2:
             # 以下のロジックは削除または修正します
             differences.append((i + 1, section1, section2))
@@ -104,7 +102,7 @@ def calculate_display_length(text):
     return wcswidth(text)
 
 
-def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
+def process_files_to_csv(keywords_with_options, output_csv):
     file1, file2 = get_log_files()
     if not file1 or not file2:
         print("必要なログファイルが見つかりません。")
@@ -112,7 +110,6 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
 
     csv_data = []
     comparison_number = 1
-    section_counts = {}  # セクション名の出現回数を追跡する辞書
     section_appearances = {}  # 全セクションの出現回数を計算するための辞書
 
     # 全セクションの出現回数を計算
@@ -221,5 +218,4 @@ keywords_with_options = {
     "import": {"lines_to_include": 1, "section_name": "インポート"},
 }
 output_csv = "comparison_results"
-process_files_to_csv("file1.log", "file2.log",
-                     keywords_with_options, output_csv)
+process_files_to_csv(keywords_with_options, output_csv)
