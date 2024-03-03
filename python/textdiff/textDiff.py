@@ -1,6 +1,25 @@
 import csv
+import os
 from datetime import datetime
 from wcwidth import wcswidth
+import sys
+
+
+def get_log_files():
+    # 実行ファイルのディレクトリを取得（PyInstaller対応）
+    if getattr(sys, "frozen", False):
+        directory = os.path.dirname(sys.executable)
+    else:
+        directory = os.path.dirname(os.path.abspath(__file__))
+
+    files = os.listdir(directory)
+    file1 = file2 = None
+    for file in files:
+        if "before" in file and file.endswith(".log"):
+            file1 = os.path.join(directory, file)
+        elif "after" in file and file.endswith(".log"):
+            file2 = os.path.join(directory, file)
+    return file1, file2
 
 
 def extract_sections(
@@ -86,6 +105,11 @@ def calculate_display_length(text):
 
 
 def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
+    file1, file2 = get_log_files()
+    if not file1 or not file2:
+        print("必要なログファイルが見つかりません。")
+        return
+
     csv_data = []
     comparison_number = 1
     section_counts = {}  # セクション名の出現回数を追跡する辞書
@@ -99,8 +123,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
     for file in [file1, file2]:
         for keyword, options in keywords_with_options.items():
             section_name = options.get("section_name", keyword)
-            temp_options = {k: v for k,
-                            v in options.items() if k != "section_name"}
+            temp_options = {k: v for k, v in options.items() if k != "section_name"}
             sections = extract_sections(file, keyword, **temp_options)
             # セクションが存在するたびにカウントアップ
             section_appearances[section_name] += len(sections)
@@ -113,8 +136,7 @@ def process_files_to_csv(file1, file2, keywords_with_options, output_csv):
 
     for keyword, options in keywords_with_options.items():
         section_name = options.get("section_name", keyword)
-        temp_options = {k: v for k, v in options.items() if k !=
-                        "section_name"}
+        temp_options = {k: v for k, v in options.items() if k != "section_name"}
         sections_file1 = extract_sections(file1, keyword, **temp_options)
         sections_file2 = extract_sections(file2, keyword, **temp_options)
         differences = compare_sections(sections_file1, sections_file2)
@@ -196,6 +218,5 @@ keywords_with_options = {
     },
     "import": {"lines_to_include": 1, "section_name": "インポート"},
 }
-process_files_to_csv(
-    "file1.log", "file2.log", keywords_with_options, "comparison_results.csv"
-)
+output_csv = "comparison_results"
+process_files_to_csv("file1.log", "file2.log", keywords_with_options, output_csv)
