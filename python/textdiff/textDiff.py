@@ -23,7 +23,11 @@ def get_log_files():
 
 
 def extract_sections(
-    filename, keyword, lines_to_include=1, comma_sections_to_compare=None
+    filename,
+    keyword,
+    lines_to_include=1,
+    comma_sections_to_compare=None,
+    exclude_phrase=None,
 ):
     sections = []
     current_section = []
@@ -32,6 +36,9 @@ def extract_sections(
         for line in file:
             if line_count > 0:
                 line_count -= 1
+            # 特定の文言を含む行を除外する条件を追加
+            if exclude_phrase and exclude_phrase in line:
+                continue
             if keyword in line:
                 if current_section:  # 新しいセクションの開始前に現在のセクションを保存
                     sections.append("".join(current_section))
@@ -209,8 +216,9 @@ def process_files_to_csv(keywords_with_options, output_csv):
 # ========================================================================
 # 使用例
 # lines_to_include            : 比較行数(int)
-# comma_sections_to_compare   :カンマ区切りの比較場所([])
-# section_name                :セクションの名前(string)
+# comma_sections_to_compare   : カンマ区切りの比較場所([])
+# section_name                : セクションの名前(string)
+# exclude_phrase              : 除外フレーズ
 # ========================================================================
 
 keywords_with_options = {
@@ -221,6 +229,11 @@ keywords_with_options = {
         "section_name": "ユニークセクション",
     },
     "import": {"lines_to_include": 1, "section_name": "インポート"},
+    "ipaddresu": {
+        "lines_to_include": 1,
+        "exclude_phrase": "uniq",
+        "section_name": "除外",
+    },
 }
 output_csv = "comparison_results"
 process_files_to_csv(keywords_with_options, output_csv)
