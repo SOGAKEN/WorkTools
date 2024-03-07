@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	url := "http://localhost:5454"
-	interval := 10 * time.Second // 定期的にリクエストを送る間隔
+	url := "https://www.yahoo.co.jp/"
+	interval := 1 * time.Second // 定期的にリクエストを送る間隔
 
 	for {
 		logFile := getLogFileName() // 現在の日付を含むログファイル名を取得
@@ -22,10 +22,17 @@ func main() {
 		}
 
 		statusCode, err := checkURL(url)
-		if err != nil || statusCode != 200 {
-			// エラーが発生した場合、またはステータスコードが200以外の場合
+		if err != nil {
+			// エラーが発生した場合、エラーメッセージをログとコンソールに出力
 			logMsg := fmt.Sprintf("[%s]: ERROR %v\n", getCurrentTimeFormatted(), err)
-			fmt.Print(logMsg) // コンソールに出力
+			fmt.Print(logMsg)
+			if _, err := file.WriteString(logMsg); err != nil {
+				log.Fatalf("Failed to write to log file: %v", err)
+			}
+		} else if statusCode != 200 {
+			// ステータスコードが200以外の場合、ステータスコードを含めてログとコンソールに出力
+			logMsg := fmt.Sprintf("[%s]: ERROR status code %d\n", getCurrentTimeFormatted(), statusCode)
+			fmt.Print(logMsg)
 			if _, err := file.WriteString(logMsg); err != nil {
 				log.Fatalf("Failed to write to log file: %v", err)
 			}
