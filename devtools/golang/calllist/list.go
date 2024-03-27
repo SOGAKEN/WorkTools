@@ -57,6 +57,9 @@ func main() {
 		}
 	}
 
+	// 書き出す前に予定されている行数をログに表示
+	fmt.Printf("Total rows to be written to J column: %d\n", len(results))
+
 	// 結果をJ列に出力
 	for i, value := range results {
 		f.SetCellInt("Sheet1", fmt.Sprintf("J%d", i+1), value)
