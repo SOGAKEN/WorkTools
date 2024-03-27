@@ -2,58 +2,52 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/xuri/excelize/v2"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Usage: go run script.go <ExcelFilePath>")
+		fmt.Println("Usage: go run main.go <ExcelFilePath>")
+		return
 	}
 
 	filePath := os.Args[1]
 	f, err := excelize.OpenFile(filePath)
 	if err != nil {
-		log.Fatalf("Failed to open file: %v", err)
-	}
-	defer func() {
-		// Save the file after modifications
-		if err := f.Save(); err != nil {
-			log.Fatalf("Failed to save file: %v", err)
-		}
-	}()
-
-	rows, err := f.GetRows("Sheet1")
-	if err != nil {
-		log.Fatalf("Failed to get rows: %v", err)
+		fmt.Println(err)
+		return
 	}
 
-	jColumnIndex := 10 // J column index
-	for i, row := range rows {
-		if len(row) < 3 { // Skip rows that don't have enough data
-			continue
-		}
-		keyword := strings.ToLower(row[0]) // Convert keyword to lowercase
-		startNum, errStart := strconv.Atoi(row[1])
-		endNum, errEnd := strconv.Atoi(row[2])
-		if errStart != nil || errEnd != nil {
-			fmt.Printf("Skipping row %d due to conversion error\n", i+1)
-			continue
+	// A列のセルを順に確認し、空のセルに達するまで処理を続ける
+	for i := 2; ; i++ { // 1行目はヘッダーなので2から開始
+		cellA, _ := f.GetCellValue("Sheet1", fmt.Sprintf("A%d", i))
+		if cellA == "" {
+			break // A列のセルが空なら処理を終了
 		}
 
-		switch keyword {
-		case "in range":
-			for j := startNum; j <= endNum; j++ {
-				cell, _ := excelize.CoordinatesToCellName(jColumnIndex, i+2) // i+2 because Excel is 1-indexed and starts from row 2 for data
-				f.SetCellValue("Sheet1", cell, j)
+		cellB, _ := f.GetCellValue("Sheet1", fmt.Sprintf("B%d", i))
+		cellC, _ := f.GetCellValue("Sheet1", fmt.Sprintf("C%d", i))
+
+		switch cellA {
+		case "In Range":
+			start, _ := strconv.Atoi(cellB)
+			end, _ := strconv.Atoi(cellC)
+			for j := start; j <= end; j++ {
+				// 生成するリストの位置を調整するために、J列に出力する際の行番号を計算
+				rowIndex := i + (j - start)
+				f.SetCellInt("Sheet1", fmt.Sprintf("J%d", rowIndex), j)
 			}
-		case "equal to":
-			cell, _ := excelize.CoordinatesToCellName(jColumnIndex, i+2)
-			f.SetCellValue("Sheet1", cell, startNum)
+		case "Equal To":
+			value, _ := strconv.Atoi(cellB)
+			f.SetCellInt("Sheet1", fmt.Sprintf("J%d", i), value)
 		}
+	}
+
+	// 変更を保存
+	if err := f.SaveAs(filePath); err != nil {
+		fmt.Println(err)
 	}
 }
