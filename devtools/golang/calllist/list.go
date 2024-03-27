@@ -21,11 +21,13 @@ func main() {
 		return
 	}
 
-	// A列のセルを順に確認し、空のセルに達するまで処理を続ける
-	for i := 2; ; i++ { // 1行目はヘッダーなので2から開始
+	// J列に出力する際の開始行を追跡
+	jColumnRow := 1
+
+	for i := 1; ; i++ { // A列が空になるまで繰り返し
 		cellA, _ := f.GetCellValue("Sheet1", fmt.Sprintf("A%d", i))
 		if cellA == "" {
-			break // A列のセルが空なら処理を終了
+			break
 		}
 
 		cellB, _ := f.GetCellValue("Sheet1", fmt.Sprintf("B%d", i))
@@ -36,13 +38,13 @@ func main() {
 			start, _ := strconv.Atoi(cellB)
 			end, _ := strconv.Atoi(cellC)
 			for j := start; j <= end; j++ {
-				// 生成するリストの位置を調整するために、J列に出力する際の行番号を計算
-				rowIndex := i + (j - start)
-				f.SetCellInt("Sheet1", fmt.Sprintf("J%d", rowIndex), j)
+				f.SetCellInt("Sheet1", fmt.Sprintf("J%d", jColumnRow), j)
+				jColumnRow++
 			}
 		case "Equal To":
 			value, _ := strconv.Atoi(cellB)
-			f.SetCellInt("Sheet1", fmt.Sprintf("J%d", i), value)
+			f.SetCellInt("Sheet1", fmt.Sprintf("J%d", jColumnRow), value)
+			jColumnRow++
 		}
 	}
 
