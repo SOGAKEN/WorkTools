@@ -27,12 +27,14 @@ Sub GenerateList()
     
     Set outputRange = ws.Range("D1:D" & ws.Cells(ws.Rows.Count, "D").End(xlUp).Row)
     
-    outputRange.FormatConditions.Add Type:=xlCellValue, Operator:=xlDuplicate
+    outputRange.FormatConditions.AddUniqueValues
     outputRange.FormatConditions(outputRange.FormatConditions.Count).SetFirstPriority
-    outputRange.FormatConditions(1).DupeUnique = xlDuplicate
-    With outputRange.FormatConditions(1).Interior
-        .PatternColorIndex = xlAutomatic
-        .Color = 65535  'Yellow color
-        .TintAndShade = 0
+    With outputRange.FormatConditions(1)
+        .DupeUnique = xlDuplicate
+        With .Interior
+            .PatternColorIndex = xlAutomatic
+            .Color = 65535  'Yellow color
+            .TintAndShade = 0
+        End With
     End With
 End Sub
