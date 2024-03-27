@@ -15,11 +15,11 @@ Sub GenerateList()
         startNum = ws.Cells(i, "B").Value
         endNum = ws.Cells(i, "C").Value
         
-        If keyword = "between" Then
+        If keyword = "in range" Then
             For j = startNum To endNum
                 ws.Cells(ws.Rows.Count, "J").End(xlUp).Offset(1, 0).Value = j
             Next j
-        ElseIf keyword = "only" Then
+        ElseIf keyword = "equal to" Then
             ws.Cells(ws.Rows.Count, "J").End(xlUp).Offset(1, 0).Value = startNum
         End If
     Next i
