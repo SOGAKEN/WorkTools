@@ -21,8 +21,7 @@ func main() {
 		return
 	}
 
-	// J列に出力する際の開始行を追跡
-	jColumnRow := 1
+	var results []int // 結果を格納するためのスライス
 
 	for i := 1; ; i++ { // A列が空になるまで繰り返し
 		cellA, _ := f.GetCellValue("Sheet1", fmt.Sprintf("A%d", i))
@@ -31,21 +30,25 @@ func main() {
 		}
 
 		cellB, _ := f.GetCellValue("Sheet1", fmt.Sprintf("B%d", i))
-		cellC, _ := f.GetCellValue("Sheet1", fmt.Sprintf("C%d", i))
+		if cellA == "Equal To" {
+			value, _ := strconv.Atoi(cellB)
+			results = append(results, value) // Equal Toの場合、B列の値を直接追加
+			continue
+		}
 
-		switch cellA {
-		case "In Range":
+		cellC, _ := f.GetCellValue("Sheet1", fmt.Sprintf("C%d", i))
+		if cellA == "In Range" {
 			start, _ := strconv.Atoi(cellB)
 			end, _ := strconv.Atoi(cellC)
 			for j := start; j <= end; j++ {
-				f.SetCellInt("Sheet1", fmt.Sprintf("J%d", jColumnRow), j)
-				jColumnRow++
+				results = append(results, j) // In Rangeの場合、範囲内の全数値を追加
 			}
-		case "Equal To":
-			value, _ := strconv.Atoi(cellB)
-			f.SetCellInt("Sheet1", fmt.Sprintf("J%d", jColumnRow), value)
-			jColumnRow++
 		}
+	}
+
+	// 結果をJ列に出力
+	for i, value := range results {
+		f.SetCellInt("Sheet1", fmt.Sprintf("J%d", i+1), value)
 	}
 
 	// 変更を保存
